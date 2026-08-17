@@ -1,0 +1,312 @@
+package com.feverdestiny.miaotv.ui.screens.leanback.classicpanel.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.tv.foundation.lazy.list.TvLazyColumn
+import androidx.tv.foundation.lazy.list.TvLazyListState
+import androidx.tv.foundation.lazy.list.itemsIndexed
+import androidx.tv.material3.ListItemDefaults
+import kotlinx.coroutines.flow.distinctUntilChanged
+import com.feverdestiny.miaotv.data.entities.EpgList
+import com.feverdestiny.miaotv.data.entities.Epg.Companion.currentProgrammes
+import com.feverdestiny.miaotv.data.entities.EpgProgramme.Companion.isLive
+import com.feverdestiny.miaotv.data.entities.EpgProgramme.Companion.progress
+import com.feverdestiny.miaotv.data.entities.EpgProgrammeCurrent
+import com.feverdestiny.miaotv.data.entities.Iptv
+import com.feverdestiny.miaotv.data.entities.IptvGroup
+import com.feverdestiny.miaotv.data.entities.IptvList
+import com.feverdestiny.miaotv.ui.components.IptvLogoImage
+import com.feverdestiny.miaotv.ui.theme.LeanbackTheme
+import com.feverdestiny.miaotv.ui.utils.handleLeanbackKeyEvents
+import com.feverdestiny.miaotv.utils.IptvCatchup
+import kotlin.math.max
+
+@Composable
+fun LeanbackClassicPanelIptvList(
+    modifier: Modifier = Modifier,
+    iptvGroupProvider: () -> IptvGroup = { IptvGroup() },
+    iptvListProvider: () -> IptvList = { IptvList() },
+    epgListProvider: () -> EpgList = { EpgList() },
+    initialIptvProvider: () -> Iptv = { Iptv() },
+    playbackStatusProvider: () -> String = { "" },
+    onIptvSelected: (Iptv) -> Unit = {},
+    onIptvFavoriteToggle: (Iptv) -> Unit = {},
+    onIptvFocused: (Iptv, FocusRequester) -> Unit = { _, _ -> },
+    showProgrammeProgressProvider: () -> Boolean = { false },
+    isFavoriteListProvider: () -> Boolean = { false },
+    onUserAction: () -> Unit = {},
+) {
+    val focusManager = LocalFocusManager.current
+    val iptvList = iptvListProvider()
+    val epgList = epgListProvider()
+    val initialIptv = initialIptvProvider()
+
+    var hasFocused by rememberSaveable { mutableStateOf(!iptvList.contains(initialIptv)) }
+    val itemFocusRequesterList = remember(iptvList) {
+        List(iptvList.size) { FocusRequester() }
+    }
+    var focusedIptv by remember(iptvList) { mutableStateOf(initialIptv) }
+
+    val epgMatchMap = remember(epgList, iptvList) {
+        iptvList.associateWith { iptv ->
+            epgList.firstOrNull { it.matchesIptv(iptv) }
+        }
+    }
+
+    LaunchedEffect(iptvList) {
+        if (iptvList.isNotEmpty()) {
+            if (hasFocused) {
+                onIptvFocused(iptvList[0], itemFocusRequesterList[0])
+            } else {
+                onIptvFocused(
+                    initialIptv,
+                    itemFocusRequesterList[max(0, iptvList.indexOf(initialIptv))],
+                )
+            }
+        }
+    }
+
+    val listState = remember(iptvGroupProvider()) {
+        TvLazyListState(
+            if (hasFocused) 0
+            else max(0, iptvList.indexOf(initialIptv) - 2)
+        )
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { _ -> onUserAction() }
+    }
+
+    TvLazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .fillMaxHeight()
+            .width(220.dp)
+            .background(MaterialTheme.colorScheme.background.copy(0.8f)),
+    ) {
+        // 允许同名同地址频道并存（多源合并场景），因此这里用 index 作为稳定 key，避免 hash 冲突导致崩溃。
+        itemsIndexed(iptvList, key = { index, _ -> index }) { index, iptv ->
+            val isSelected by remember { derivedStateOf { iptv == focusedIptv } }
+            val initialFocused by remember {
+                derivedStateOf { !hasFocused && iptv == initialIptv }
+            }
+
+            LeanbackClassicPanelIptvItem(
+                iptvProvider = { iptv },
+                epgProgrammeCurrentProvider = { epgMatchMap[iptv]?.currentProgrammes() },
+                playbackStatusProvider = playbackStatusProvider,
+                focusRequesterProvider = { itemFocusRequesterList[index] },
+                isSelectedProvider = { isSelected },
+                initialFocusedProvider = { initialFocused },
+                onInitialFocused = { hasFocused = true },
+                onFocused = {
+                    focusedIptv = iptv
+                    onIptvFocused(iptv, itemFocusRequesterList[index])
+                },
+                onSelected = { onIptvSelected(iptv) },
+                onFavoriteToggle = {
+                    if (isFavoriteListProvider()) {
+                        if (iptvList.size == 1) {
+                            focusManager.moveFocus(FocusDirection.Left)
+                        } else if (iptvList.first() == iptv) {
+                            focusManager.moveFocus(FocusDirection.Down)
+                        } else if (iptvList.last() == iptv) {
+                            focusManager.moveFocus(FocusDirection.Up)
+                        } else {
+                            focusManager.moveFocus(FocusDirection.Down)
+                        }
+                    }
+                    onIptvFavoriteToggle(iptv)
+                },
+                showProgrammeProgressProvider = showProgrammeProgressProvider,
+                itemKeyTokenProvider = { index },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LeanbackClassicPanelIptvItem(
+    modifier: Modifier = Modifier,
+    iptvProvider: () -> Iptv = { Iptv() },
+    epgProgrammeCurrentProvider: () -> EpgProgrammeCurrent? = { null },
+    playbackStatusProvider: () -> String = { "" },
+    focusRequesterProvider: () -> FocusRequester = { FocusRequester() },
+    isSelectedProvider: () -> Boolean = { false },
+    initialFocusedProvider: () -> Boolean = { false },
+    onInitialFocused: () -> Unit = {},
+    onFocused: () -> Unit = {},
+    onSelected: () -> Unit = {},
+    onFavoriteToggle: () -> Unit = {},
+    showProgrammeProgressProvider: () -> Boolean = { false },
+    itemKeyTokenProvider: () -> Int = { 0 },
+) {
+    val iptv = iptvProvider()
+    val focusRequester = focusRequesterProvider()
+    val currentProgramme = epgProgrammeCurrentProvider()?.primaryProgramme()
+    val playbackStatus = playbackStatusProvider().trim()
+    val replaySupported = IptvCatchup.supportCatchup(iptv)
+
+    var isFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (initialFocusedProvider()) {
+            onInitialFocused()
+            focusRequester.requestFocus()
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalContentColor provides if (isFocused) MaterialTheme.colorScheme.background
+        else MaterialTheme.colorScheme.onBackground
+    ) {
+        Box(
+            modifier = Modifier.clip(ListItemDefaults.shape().shape),
+        ) {
+            androidx.tv.material3.ListItem(
+                modifier = modifier
+                    .focusRequester(focusRequester)
+                    .onFocusChanged {
+                        isFocused = it.isFocused || it.hasFocus
+
+                        if (isFocused) {
+                            onFocused()
+                        }
+                    }
+                    .handleLeanbackKeyEvents(
+                        key = itemKeyTokenProvider(),
+                        pointerTapEnabled = false,
+                        onSelect = {
+                            if (isFocused) onSelected()
+                            else focusRequester.requestFocus()
+                        },
+                        onLongSelect = {
+                            if (isFocused) onFavoriteToggle()
+                            else focusRequester.requestFocus()
+                        },
+                    )
+                    // TV ListItem 的 onClick 在部分触摸机型上不会触发；显式消费点击以换台并避免穿透到外层关闭手势
+                    .pointerInput(iptv, itemKeyTokenProvider()) {
+                        detectTapGestures(
+                            onTap = { onSelected() },
+                            onLongPress = { onFavoriteToggle() },
+                        )
+                    },
+                colors = ListItemDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.onBackground,
+                    selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                        alpha = 0.5f
+                    ),
+                ),
+                selected = isSelectedProvider(),
+                // 触摸由 ListItem 消费，避免与 ClassicPanel 外层「点空白关闭」手势冲突导致闪退
+                onClick = { onSelected() },
+                leadingContent = if (iptv.logoUrl.isNotBlank()) {
+                    {
+                        IptvLogoImage(
+                            logoUrl = iptv.logoUrl,
+                            contentDescription = iptv.name,
+                            size = 36.dp,
+                        )
+                    }
+                } else {
+                    null
+                },
+                headlineContent = {
+                    Text(text = iptv.name, maxLines = 2)
+                },
+                supportingContent = {
+                    val prefix = if (isSelectedProvider() && playbackStatus.isNotEmpty()) {
+                        "$playbackStatus | "
+                    } else {
+                        ""
+                    }
+                    Text(
+                        text = "$prefix${currentProgramme?.title ?: "无节目"}",
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        modifier = Modifier.alpha(0.8f),
+                    )
+                },
+            )
+
+            if (replaySupported) {
+                val iconTint =
+                    if (isFocused || isSelectedProvider()) Color.Black
+                    else Color.White
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "支持回看",
+                    tint = iconTint,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 6.dp),
+                )
+            }
+
+            if (showProgrammeProgressProvider() && currentProgramme != null && currentProgramme.isLive()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth(currentProgramme.progress())
+                        .height(3.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                        ),
+                )
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun LeanbackClassicPanelIptvListPreview() {
+    LeanbackTheme {
+        LeanbackClassicPanelIptvList(
+            modifier = Modifier.padding(20.dp),
+            iptvListProvider = { IptvList.EXAMPLE },
+        )
+    }
+}

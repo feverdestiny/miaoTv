@@ -128,9 +128,9 @@ jobs:
             ls -lh "$dest"
           }
 
-          copy_flavor "originalArm" "$ROOT/artifacts/vstv-${VER}-arm.apk"
-          copy_flavor "originalX86" "$ROOT/artifacts/vstv-${VER}-x86_64.apk"
-          copy_flavor "disguisedArm" "$ROOT/artifacts/vstv-${VER}-HarmonyOS.apk"
+          copy_flavor "originalArm" "$ROOT/artifacts/miaotv-${VER}-arm.apk"
+          copy_flavor "originalX86" "$ROOT/artifacts/miaotv-${VER}-x86_64.apk"
+          copy_flavor "disguisedArm" "$ROOT/artifacts/miaotv-${VER}-HarmonyOS.apk"
 
           echo "=== 即将上传的 artifacts ==="
           ls -lh "$ROOT/artifacts/"
@@ -157,9 +157,9 @@ jobs:
             echo "${tag} FFmpeg so 校验通过"
           }
 
-          require_ffmpeg_so "$ROOT/artifacts/vstv-${VER}-arm.apk" "arm"
-          require_ffmpeg_so "$ROOT/artifacts/vstv-${VER}-x86_64.apk" "x86_64"
-          require_ffmpeg_so "$ROOT/artifacts/vstv-${VER}-HarmonyOS.apk" "HarmonyOS"
+          require_ffmpeg_so "$ROOT/artifacts/miaotv-${VER}-arm.apk" "arm"
+          require_ffmpeg_so "$ROOT/artifacts/miaotv-${VER}-x86_64.apk" "x86_64"
+          require_ffmpeg_so "$ROOT/artifacts/miaotv-${VER}-HarmonyOS.apk" "HarmonyOS"
 
       # 优先使用 CHANGELOG.md 中对应「## [x.y.z]」章节作为 Release 正文；
       # 若缺失则写入兜底文案（不阻断构建）。
@@ -187,18 +187,16 @@ jobs:
           print(body[:4000] if len(body) > 4000 else body)
           PY
 
-      # 分发仓库固定为 vesaaa/vstv（README / Release 对外）；源码在 vesaaa/vstv-src 时须 PAT 写权限。
-      # 在 vstv 本仓跑同一工作流时仍用默认 GITHUB_TOKEN 即可（与 repository 指向同一仓）。
+      # 在本仓 feverdestiny/miaoTv 发布；使用默认 GITHUB_TOKEN。
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: success()
         with:
-          token: ${{ github.repository == 'vesaaa/vstv-src' && secrets.PUBLIC_REPO_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          repository: vesaaa/vstv
+          token: ${{ secrets.GITHUB_TOKEN }}
           # 顺序影响上传/部分 API 中资产排列；与 Package artifacts 中 copy 顺序一致，优先 arm
           files: |
-            artifacts/vstv-${{ steps.ver.outputs.version }}-arm.apk
-            artifacts/vstv-${{ steps.ver.outputs.version }}-x86_64.apk
-            artifacts/vstv-${{ steps.ver.outputs.version }}-HarmonyOS.apk
+            artifacts/miaotv-${{ steps.ver.outputs.version }}-arm.apk
+            artifacts/miaotv-${{ steps.ver.outputs.version }}-x86_64.apk
+            artifacts/miaotv-${{ steps.ver.outputs.version }}-HarmonyOS.apk
           body_path: release_body.md
           generate_release_notes: false
