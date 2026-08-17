@@ -1,0 +1,86 @@
+# Sideload / first-test APK. Does NOT use KEYSTORE_* secrets.
+# Release variants are signed with the debug keystore via -PciUseDebugSigning=true.
+name: Sideload debug-signed APK
+
+on:
+  push:
+    branches:
+      - cursor/sideload-apk-06ae
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      GRADLE_OPTS: -Xmx4096m -Dfile.encoding=UTF-8
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Assemble originalArmRelease (debug signing)
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleOriginalArmRelease \
+            -PciUseDebugSigning=true \
+            -PreleaseVersion=0.1.0 \
+            --stacktrace --no-daemon
+
+      - name: Package APK
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          echo "=== 构建输出目录（全部 APK）==="
+          find app/build/outputs/apk -name "*.apk" -type f | sort || true
+          dir="app/build/outputs/apk/originalArm/release"
+          apk=$(find "$dir" -type f -name "*.apk" ! -name "*-unsigned.apk" ! -name "*unaligned*" | head -n1)
+          if [[ -z "${apk}" || ! -f "${apk}" ]]; then
+            echo "::error::未找到 originalArmRelease APK"
+            exit 1
+          fi
+          cp "$apk" artifacts/miaotv-0.1.0-arm-debugsigned.apk
+          ls -lh artifacts/miaotv-0.1.0-arm-debugsigned.apk
+          unzip -l artifacts/miaotv-0.1.0-arm-debugsigned.apk | grep -E "lib/.+\.so$" | head -n 40 || true
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miaotv-0.1.0-arm-debugsigned
+          path: artifacts/miaotv-0.1.0-arm-debugsigned.apk
+          if-no-files-found: error
+
+      - name: Create GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0
+          target_commitish: main
+          name: miaoTv 0.1.0
+          prerelease: true
+          fail_on_unmatched_files: true
+          files: artifacts/miaotv-0.1.0-arm-debugsigned.apk
+          body: |
+            这是基于当前 `main` 的首个侧载测试包（`originalArmRelease`，包名 `com.feverdestiny.miaotv`）。
+
+            - 默认订阅源：本仓库 [`sources/cn.m3u`](https://github.com/feverdestiny/miaoTv/blob/main/sources/cn.m3u)
+            - **调试签名（debug-signed）**：后续正式签名包无法覆盖安装，请先卸载本测试包再装正式版
+            - 安装方式：Android TV / 盒子通过 U 盘或 ADB 侧载
+
+            构建：`./gradlew :app:assembleOriginalArmRelease -PciUseDebugSigning=true -PreleaseVersion=0.1.0`
