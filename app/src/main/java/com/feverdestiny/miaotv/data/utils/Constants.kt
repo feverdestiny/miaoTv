@@ -17,12 +17,12 @@ object Constants {
     const val APP_REPO = "https://github.com/feverdestiny/miaoTv"
 
     /**
-     * 默认 IPTV 订阅地址（新安装自动写入设置与历史；bit.ly 短链跳转实际 m3u）
+     * 默认 IPTV 订阅地址（新安装在设置为空时使用；本仓库聚合列表 `sources/cn.m3u`）
      */
     val IPTV_SOURCE_URL: String get() = AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_URL
 
     /**
-     * 拉取上述源时的默认请求头；单行无冒号即作为 User-Agent（与 APTV 一致）
+     * 拉取上述源时的默认请求头；GitHub raw 无需 UA，默认空。单行无冒号即作为 User-Agent。
      */
     val IPTV_SOURCE_DEFAULT_REQUEST_HEADERS: String get() = AppBuiltinEndpoints.IPTV_DEFAULT_REQUEST_HEADERS
 

@@ -6,9 +6,9 @@
 
 ## 合并到 `main` 后的 Raw 地址
 
-在 miaoTv 里把下面任一地址加为直播源即可：
+应用**首次安装的默认订阅**是中国频道聚合列表（`cn.m3u`）。仅看央视可在 **设置 → 直播源** 改为 `cctv.m3u`：
 
-- 中国频道（合并去重）：https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u
+- 中国频道（合并去重，**应用默认**）：https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u
 - 仅 CCTV / 央视：https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u
 
 在应用中打开 **设置 → 直播源**，粘贴上述 URL 保存。也可通过设备上的网页配置页（`http://<设备IP>:1616`）填写同一地址。

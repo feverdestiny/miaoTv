@@ -260,7 +260,7 @@ object SP {
 
     /** 直播源 url */
     var iptvSourceUrl: String
-        get() = sp.getString(KEY.IPTV_SOURCE_URL.name, "") ?: ""
+        get() = sp.getString(KEY.IPTV_SOURCE_URL.name, Constants.IPTV_SOURCE_URL) ?: Constants.IPTV_SOURCE_URL
         set(value) {
             val trimmed = value.trim()
             if (trimmed.isBlank() || !trimmed.startsWith(IPTV_LOCAL_SOURCE_URL)) {
@@ -275,7 +275,8 @@ object SP {
 
     /** 拉取 m3u/tvbox 订阅时使用的额外请求头（每行「Name: Value」；单行无冒号时视为仅 User-Agent 取值） */
     var iptvSourceRequestHeaders: String
-        get() = sp.getString(KEY.IPTV_SOURCE_REQUEST_HEADERS.name, "") ?: ""
+        get() = sp.getString(KEY.IPTV_SOURCE_REQUEST_HEADERS.name, Constants.IPTV_SOURCE_DEFAULT_REQUEST_HEADERS)
+            ?: Constants.IPTV_SOURCE_DEFAULT_REQUEST_HEADERS
         set(value) = sp.edit().putString(KEY.IPTV_SOURCE_REQUEST_HEADERS.name, value).apply()
 
     /** 播放频道流时使用的额外请求头（每行「Name: Value」；单行无冒号时视为仅 User-Agent 取值） */

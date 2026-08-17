@@ -7,9 +7,11 @@ object AppBuiltinEndpoints {
     const val GIT_RELEASE_LATEST_API =
         "https://api.github.com/repos/feverdestiny/miaoTv/releases/latest"
 
-    const val IPTV_DEFAULT_SUBSCRIPTION_URL = "https://bit.ly/jsnzkpg"
+    const val IPTV_DEFAULT_SUBSCRIPTION_URL =
+        "https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u"
 
-    const val IPTV_DEFAULT_REQUEST_HEADERS = "aptv"
+    /** GitHub raw 无需自定义 UA；空串即使用系统默认。 */
+    const val IPTV_DEFAULT_REQUEST_HEADERS = ""
 
     const val EPG_XML_PRIMARY = "http://epg.51zmt.top:8000/e1.xml.gz"
 
