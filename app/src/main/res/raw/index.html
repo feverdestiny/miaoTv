@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>VsTV</title>
+    <link href="./index_css.css" rel="stylesheet" />
+    <script src="./index_js.js"></script>
+
+    <style>
+        .van-theme-dark body {
+            color: #f5f5f5;
+            background-color: black;
+        }
+
+        .section-title {
+            margin: 16px 20px 8px;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #111827;
+        }
+
+        .van-theme-dark .section-title {
+            color: #f9fafb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="min-h-100vh py-46px" id="app">
+        <van-config-provider :theme="isDark ? 'dark' : 'light'">
+            <!-- v-if 与 v-else 必须紧邻，中间不能有空白文本节点（部分 WebView 会触发 compiler-30） -->
+            <div v-if="!settings"><van-empty image="network"></van-empty></div><div v-else>
+                <div class="p-20px pt-0">
+                    <div class="ml-16px text-32px">{{ settings.appTitle }}</div>
+                </div>
+
+                <div class="section-title">通知</div>
+                <van-cell-group inset>
+                    <van-cell>
+                        <template #title>
+                            <div class="text-13px font-bold">使用提示</div>
+                        </template>
+                        <template #label>
+                            <van-space direction="vertical" size="2" class="w-full">
+                                <span class="text-12px">修改前请关闭电视端「设置」页，避免与网页同时写入。</span>
+                                <span class="text-12px">部分项修改后需重启应用生效。</span>
+                                <span class="text-12px">本页仅负责推送；订阅源列表、默认项、删除等请在 APP 设置中操作。</span>
+                            </van-space>
+                        </template>
+                    </van-cell>
+                </van-cell-group>
+
+                <div class="section-title">直播源</div>
+                <van-cell-group inset>
+                    <van-cell title="地址 + 双 User-Agent 一组推送">
+                        <template #label>
+                            <van-space class="w-full" direction="vertical" size="small">
+                                <span>与 APP 一致：直播相关请求拆为两套 UA——<strong>拉取订阅 UA</strong> 与 <strong>播放频道 UA</strong>。填写拉取订阅 UA 时会自动同步到播放频道 UA（播放频道 UA 可再单独修改）。</span>
+                                <span class="text-gray text-12px"><strong>User-Agent 只需填取值</strong>（不要写 <code>User-Agent:</code>）；服务端会自动补成 <code>User-Agent: 取值</code>。</span>
+                                <span class="text-gray text-12px">示例取值：<code>okHttp/Mod-1.5.0.0</code></span>
+                                <span class="text-gray text-12px">本地上传 <strong>M3U / TXT</strong>：在<strong>系统浏览器</strong>中打开本页后，选择「本地上传」并选文件；<strong>微信内置浏览器无法调起文件选择</strong>，请用右上角「在浏览器打开」或仅使用「输入直播源地址」。</span>
+                                <van-notice-bar v-if="!localFileUploadSupported" left-icon="info-o" wrapable :scrollable="false" class="!my-6px">
+                                    当前环境不支持本地上传，请使用系统浏览器打开本页，或直接在下方输入订阅地址。
+                                </van-notice-bar>
+                                <van-radio-group v-if="localFileUploadSupported" v-model="iptvSourceInputMode" direction="horizontal" class="mt-6px" @change="onIptvSourceModeChange">
+                                    <van-radio name="url">输入直播源地址</van-radio>
+                                    <van-radio name="file">本地上传文件</van-radio>
+                                </van-radio-group>
+                                <input id="iptvFileInput" type="file" accept=".m3u,.m3u8,.txt,text/plain" style="display:none" @change="onIptvLocalFileChange" />
+                                <span class="text-gray text-13px font-bold">直播源地址</span>
+                                <div style="border: 1px solid #d4d4d8; border-radius: 6px; overflow: hidden;">
+                                    <van-field class="!p-0"
+                                        :placeholder="(localFileUploadSupported && iptvSourceInputMode === 'file') ? '选择文件上传后将显示为本地占位地址' : '粘贴订阅 URL'"
+                                        :readonly="localFileUploadSupported && iptvSourceInputMode === 'file'"
+                                        v-model="settings.iptvSourceUrl" type="textarea" rows="2"></van-field>
+                                </div>
+                                <van-button v-if="localFileUploadSupported && iptvSourceInputMode === 'file'" size="small" type="success" plain class="mt-6px" @click="pickIptvLocalFile">选择本地文件</van-button>
+                                <span class="text-gray text-13px font-bold">拉取订阅 User-Agent</span>
+                                <div style="border: 1px solid #d4d4d8; border-radius: 6px; overflow: hidden;">
+                                    <van-field class="!p-0" placeholder="如 okHttp/Mod-1.5.0.0"
+                                        v-model="settings.iptvSourceRequestHeaders" type="textarea" rows="2"
+                                        @update:model-value="onIptvSourceUaInput"></van-field>
+                                </div>
+                                <span class="text-gray text-13px font-bold">播放频道 User-Agent</span>
+                                <div style="border: 1px solid #d4d4d8; border-radius: 6px; overflow: hidden;">
+                                    <van-field class="!p-0" placeholder="默认跟随拉取订阅 UA，可单独修改"
+                                        v-model="settings.iptvChannelRequestHeaders" type="textarea" rows="2"
+                                        @update:model-value="onIptvChannelUaInput"></van-field>
+                                </div>
+                                <van-space size="small" wrap class="mt-4px">
+                                    <van-button size="small" type="primary" plain @click="setIptvUaPreset('okHttp')">
+                                        okHttp
+                                    </van-button>
+                                    <van-button size="small" type="primary" plain @click="setIptvUaPreset('APTV')">
+                                        APTV
+                                    </van-button>
+                                    <van-button size="small" type="primary" plain @click="setIptvUaPreset('Browser')">
+                                        通用浏览器
+                                    </van-button>
+                                    <van-button size="small" type="primary" plain @click="setIptvUaPreset('CTC')">
+                                        电信天翼
+                                    </van-button>
+                                    <van-button size="small" type="primary" plain @click="setIptvUaPreset('Unicom')">
+                                        联通沃TV
+                                    </van-button>
+                                    <van-button size="small" type="primary" plain @click="setIptvUaPreset('CMCC')">
+                                        移动咪咕
+                                    </van-button>
+                                </van-space>
+                                <van-button @click="pushIptv()" block type="primary" class="mt-8px">推送（地址与请求头一起生效）</van-button>
+                            </van-space>
+                        </template>
+                    </van-cell>
+                </van-cell-group>
+
+                <div class="section-title">节目单</div>
+                <van-cell-group inset>
+                    <van-cell title="地址 + User-Agent 一组推送">
+                        <template #label>
+                            <van-space class="w-full" direction="vertical" size="small">
+                                <span>与直播源一致：<strong>节目单地址</strong>与请求头中的 <strong>User-Agent</strong> 绑定保存；<strong>拉取节目单 XML</strong>时使用该头（未配置 UA 时不附加）。默认节目单也可在电视端「设置 → 节目单」切换。</span>
+                                <span class="text-gray text-12px"><strong>User-Agent 非必填</strong>；只填取值时不要写 <code>User-Agent:</code> 前缀。</span>
+                                <span class="text-gray text-12px">支持 xml、xml.gz</span>
+                                <span class="text-gray text-13px font-bold">节目单地址</span>
+                                <div style="border: 1px solid #d4d4d8; border-radius: 6px; overflow: hidden;">
+                                    <van-field class="!p-0" placeholder="粘贴节目单 URL"
+                                        v-model="settings.epgXmlUrl" type="textarea" rows="2"></van-field>
+                                </div>
+                                <span class="text-gray text-13px font-bold">User-Agent（可留空）</span>
+                                <div style="border: 1px solid #d4d4d8; border-radius: 6px; overflow: hidden;">
+                                    <van-field class="!p-0" placeholder="如 okHttp/Mod-1.5.0.0"
+                                        v-model="settings.epgXmlRequestHeaders" type="textarea" rows="3"></van-field>
+                                </div>
+                                <van-button @click="pushEpg()" block type="primary" class="mt-8px">推送（地址与请求头一起生效）</van-button>
+                            </van-space>
+                        </template>
+                    </van-cell>
+                </van-cell-group>
+
+            </div>
+        </van-config-provider>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue
+
+        const baseUrl = ""
+
+        const IPTV_LOCAL_MAX_CHARS = 6 * 1024 * 1024
+        /** 与 SP.IPTV_LOCAL_SOURCE_URL 一致 */
+        const IPTV_LOCAL_PLACEHOLDER_URL = 'local://uploaded'
+
+        function detectLocalFileUploadSupported() {
+            try {
+                if (typeof FileReader === 'undefined') return false
+                if (/MicroMessenger/i.test(navigator.userAgent || '')) return false
+                const el = document.createElement('input')
+                el.type = 'file'
+                return el.type === 'file'
+            } catch (e) {
+                return false
+            }
+        }
+
+        async function requestApi(url, config) {
+            const resp = await fetch(`${baseUrl}${url}`, config)
+            if (resp.status === 413) {
+                throw new Error('文件过大')
+            }
+            if (resp.status !== 200) {
+                throw new Error(`请求失败：${resp.status}`)
+            }
+            return resp
+        }
+
+        /** 仅填 UA 取值时的默认（与 normalizeIptvRequestHeadersInput 一致） */
+        const DEFAULT_IPTV_UA_VALUE = 'okHttp/Mod-1.5.0.0'
+
+        /** IPTV UA 预设 */
+        const IPTV_UA_PRESETS = {
+            okHttp: 'okHttp/Mod-1.5.0.0',
+            APTV: 'AptvPlayer/1.5.1',
+            Browser: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            CTC: 'IPTV/1.0 (Linux; U; Android 9.0; STB) CTC/2.0',
+            Unicom: 'BestvVideo/3.0 (Linux; Android 9; Unicom-STB) UC/2.0',
+            CMCC: 'Mozilla/5.0 (Linux; Android 9; MIBOX-MI) AppleWebKit/537.36 (KHTML, like Gecko) MBB/1.0 Safari/537.36',
+        }
+
+        /** 存储格式 → 表单展示（单行且仅为 User-Agent 时去掉前缀） */
+        function iptvHeadersToFormDisplay(h) {
+            const t = (h == null ? '' : String(h)).trim()
+            if (!t) return ''
+            if (/[\r\n]/.test(t)) return t
+            const idx = t.indexOf(':')
+            if (idx > 0 && t.slice(0, idx).trim().toLowerCase() === 'user-agent') {
+                return t.slice(idx + 1).trim()
+            }
+            return t
+        }
+
+        /** 表单 → 提交给接口（单行且无冒号 → 自动加 User-Agent:） */
+        function iptvFormDisplayToHeaders(form) {
+            const t = (form == null ? '' : String(form)).trim()
+            if (!t) return ''
+            if (/[\r\n]/.test(t)) return t
+            if (t.includes(':')) return t
+            return 'User-Agent: ' + t
+        }
+
+        createApp({
+            setup() {
+                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                const settings = ref()
+                const localFileUploadSupported = ref(detectLocalFileUploadSupported())
+                /** 'url' | 'file'，默认输入地址；不支持本地上传时界面不展示单选，逻辑上始终为 url */
+                const iptvSourceInputMode = ref('url')
+                const iptvChannelUaManuallyEdited = ref(false)
+
+                async function postPartial(partial) {
+                    vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
+                    try {
+                        await requestApi('/api/settings', {
+                            method: 'POST',
+                            body: JSON.stringify(partial),
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                        await refreshSettings(false)
+                        vant.closeToast()
+                        vant.showSuccessToast('已保存')
+                    } catch (e) {
+                        vant.closeToast()
+                        const msg = (e && String(e.message || e).includes('文件过大')) ? '内容过大（上限约 6MB）' : '无法修改设置'
+                        vant.showFailToast(msg)
+                        console.error(e)
+                        await refreshSettings(true)
+                        throw e
+                    }
+                }
+
+                async function refreshSettings(showLoading) {
+                    if (showLoading === undefined) showLoading = true
+                    try {
+                        if (showLoading) {
+                            vant.showLoadingToast({ message: '加载中...', forbidClick: true, duration: 0 })
+                        }
+                        settings.value = await (await requestApi('/api/settings')).json()
+                        settings.value.iptvSourceRequestHeaders = iptvHeadersToFormDisplay(
+                            settings.value.iptvSourceRequestHeaders
+                        )
+                        settings.value.iptvChannelRequestHeaders = iptvHeadersToFormDisplay(
+                            settings.value.iptvChannelRequestHeaders == null ? '' : settings.value.iptvChannelRequestHeaders
+                        )
+                        settings.value.epgXmlRequestHeaders = iptvHeadersToFormDisplay(
+                            settings.value.epgXmlRequestHeaders == null ? '' : settings.value.epgXmlRequestHeaders
+                        )
+                        if (showLoading) {
+                            const uh = settings.value.iptvSourceRequestHeaders
+                            if (uh == null || String(uh).trim() === '') {
+                                settings.value.iptvSourceRequestHeaders = DEFAULT_IPTV_UA_VALUE
+                            }
+                            const ch = settings.value.iptvChannelRequestHeaders
+                            if (ch == null || String(ch).trim() === '') {
+                                settings.value.iptvChannelRequestHeaders = settings.value.iptvSourceRequestHeaders
+                            }
+                        }
+                        iptvChannelUaManuallyEdited.value = false
+                        if (localFileUploadSupported.value && settings.value.iptvSourceIsLocal) {
+                            iptvSourceInputMode.value = 'file'
+                        } else {
+                            iptvSourceInputMode.value = 'url'
+                        }
+                        if (showLoading) vant.closeToast()
+                    } catch (e) {
+                        if (showLoading) vant.closeToast()
+                        vant.showFailToast('无法获取设置')
+                        console.error(e)
+                    }
+                }
+
+                function onIptvSourceModeChange(name) {
+                    if (!settings.value) return
+                    if (name === 'file' && !settings.value.iptvSourceIsLocal) {
+                        settings.value.iptvSourceUrl = ''
+                    }
+                }
+
+                function onIptvSourceUaInput(v) {
+                    if (!settings.value) return
+                    if (!iptvChannelUaManuallyEdited.value) {
+                        settings.value.iptvChannelRequestHeaders = v
+                    }
+                }
+
+                function onIptvChannelUaInput() {
+                    iptvChannelUaManuallyEdited.value = true
+                }
+
+                function pushIptv() {
+                    if (!settings.value) return
+                    const useFileMode = localFileUploadSupported.value && iptvSourceInputMode.value === 'file'
+                    if (useFileMode) {
+                        const u = (settings.value.iptvSourceUrl || '').trim()
+                        if (!u.startsWith(IPTV_LOCAL_PLACEHOLDER_URL)) {
+                            vant.showToast('请先选择本地文件上传')
+                            return
+                        }
+                    } else {
+                        const url = (settings.value.iptvSourceUrl || '').trim()
+                        if (!url) {
+                            vant.showToast('未填写直播源地址，未修改')
+                            return
+                        }
+                    }
+                    postPartial({
+                        iptvSourceUrl: (settings.value.iptvSourceUrl || '').trim(),
+                        iptvSourceRequestHeaders: iptvFormDisplayToHeaders(
+                            settings.value.iptvSourceRequestHeaders
+                        ),
+                        iptvChannelRequestHeaders: iptvFormDisplayToHeaders(
+                            settings.value.iptvChannelRequestHeaders
+                        ),
+                    }).catch(() => {})
+                }
+
+                function pickIptvLocalFile() {
+                    if (!localFileUploadSupported.value) {
+                        vant.showToast('当前环境不支持本地上传')
+                        return
+                    }
+                    const el = document.getElementById('iptvFileInput')
+                    if (el) el.click()
+                }
+
+                function onIptvLocalFileChange(ev) {
+                    const f = ev.target && ev.target.files && ev.target.files[0]
+                    if (ev.target) ev.target.value = ''
+                    if (!f) return
+                    const reader = new FileReader()
+                    reader.onload = async () => {
+                        const text = String(reader.result || '')
+                        try {
+                            await pushIptvLocalText(text)
+                        } catch (_) { /* postPartial 已提示 */ }
+                    }
+                    reader.onerror = () => vant.showFailToast('读取文件失败')
+                    reader.readAsText(f, 'UTF-8')
+                }
+
+                async function pushIptvLocalText(raw) {
+                    if (!settings.value) return
+                    const text = String(raw || '').trim()
+                    if (!text) {
+                        vant.showToast('文件为空')
+                        return
+                    }
+                    if (text.length > IPTV_LOCAL_MAX_CHARS) {
+                        vant.showFailToast('内容过大（上限约 6MB）')
+                        return
+                    }
+                    await postPartial({
+                        iptvSourceLocalText: text,
+                        iptvSourceRequestHeaders: iptvFormDisplayToHeaders(
+                            settings.value.iptvSourceRequestHeaders
+                        ),
+                        iptvChannelRequestHeaders: iptvFormDisplayToHeaders(
+                            settings.value.iptvChannelRequestHeaders
+                        ),
+                    })
+                }
+
+                function pushEpg() {
+                    if (!settings.value) return
+                    const url = (settings.value.epgXmlUrl || '').trim()
+                    if (!url) {
+                        vant.showToast('未填写节目单地址，未修改')
+                        return
+                    }
+                    postPartial({
+                        epgXmlUrl: url,
+                        epgXmlRequestHeaders: iptvFormDisplayToHeaders(
+                            settings.value.epgXmlRequestHeaders
+                        ),
+                    }).catch(() => {})
+                }
+
+                function setIptvUaPreset(key) {
+                    if (!settings.value) return
+                    const v = IPTV_UA_PRESETS[key]
+                    if (!v) return
+                    settings.value.iptvSourceRequestHeaders = v
+                    if (!iptvChannelUaManuallyEdited.value || !(settings.value.iptvChannelRequestHeaders || '').trim()) {
+                        settings.value.iptvChannelRequestHeaders = v
+                    }
+                }
+
+                onMounted(async () => {
+                    await refreshSettings()
+                })
+
+                return {
+                    isDark,
+                    settings,
+                    localFileUploadSupported,
+                    iptvSourceInputMode,
+                    onIptvSourceModeChange,
+                    onIptvSourceUaInput,
+                    onIptvChannelUaInput,
+                    pushIptv,
+                    pushEpg,
+                    setIptvUaPreset,
+                    pickIptvLocalFile,
+                    onIptvLocalFileChange,
+                }
+            }
+        })
+            .use(vant)
+            .mount('#app')
+    </script>
+</body>
+
+</html>

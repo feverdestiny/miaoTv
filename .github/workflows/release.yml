@@ -1,0 +1,204 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*"
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      GRADLE_OPTS: -Xmx4096m -Dfile.encoding=UTF-8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Prepare keystore (required for releasable auto-update)
+        id: sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::缺少 Release 签名 Secret（KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD），为避免产出不可覆盖安装的包，本次直接失败。"
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          echo "mode=release" >> "$GITHUB_OUTPUT"
+          echo "已使用仓库 Secret 中的 Release 签名"
+
+      - name: Parse version from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VER="$TAG"
+          VER="${VER#v}"
+          VER="${VER#tv-}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          VER_NUM="${VER%%-*}"
+          echo "versionCore=$VER_NUM" >> "$GITHUB_OUTPUT"
+          IFS='.' read -r A B C <<< "$VER_NUM"
+          A=${A:-0}
+          B=${B:-0}
+          C=${C:-0}
+          VC=$((10#$A * 1000000 + 10#$B * 1000 + 10#$C))
+          echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
+          echo "Release version=$VER versionCore=$VER_NUM versionCode=$VC (from tag $TAG)"
+
+      # 单次 ./gradlew assembleRelease，无重试；若编译失败，日志里可能出现多条失败（各 flavor 并行任务独立报错）
+      - name: Assemble all release variants
+        env:
+          KEYSTORE: ${{ github.workspace }}/app/keystore.jks
+          KEYSTORE_TYPE: PKCS12
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x ./gradlew
+          VER="${{ steps.ver.outputs.version }}"
+          VC="${{ steps.ver.outputs.versionCode }}"
+          ARGS=(
+            assembleRelease
+            --no-daemon
+            --build-cache
+            "-PreleaseVersion=$VER"
+            "-PversionCode=$VC"
+          )
+          ./gradlew "${ARGS[@]}" --stacktrace
+
+      - name: Package artifacts
+        if: success()
+        run: |
+          set -euo pipefail
+          VER="${{ steps.ver.outputs.version }}"
+          ROOT="$GITHUB_WORKSPACE"
+          mkdir -p "$ROOT/artifacts"
+          echo "=== 构建输出目录（全部 APK）==="
+          find "$ROOT/app/build/outputs/apk" -name "*.apk" -type f 2>/dev/null | sort || true
+
+          pick_apk() {
+            local flavor="$1"
+            local dir="$ROOT/app/build/outputs/apk/${flavor}/release"
+            if [[ ! -d "$dir" ]]; then
+              echo "::error::缺少输出目录: $dir"
+              return 1
+            fi
+            local apk=""
+            apk=$(find "$dir" -type f -name "*.apk" ! -name "*-unsigned.apk" ! -name "*unaligned*" 2>/dev/null | head -n1 || true)
+            if [[ -z "$apk" ]]; then
+              apk=$(find "$dir" -type f -name "*.apk" 2>/dev/null | head -n1 || true)
+            fi
+            if [[ -z "$apk" || ! -f "$apk" ]]; then
+              echo "::error::在 $dir 中未找到 APK（flavor=${flavor}）"
+              find "$ROOT/app/build/outputs/apk" -type f 2>/dev/null | head -50 || true
+              return 1
+            fi
+            echo "选用 [$flavor]: $apk" >&2
+            printf '%s\n' "$apk"
+          }
+
+          copy_flavor() {
+            local flavor="$1"
+            local dest="$2"
+            local src
+            src=$(pick_apk "$flavor")
+            cp "$src" "$dest"
+            SO_COUNT=$(unzip -l "$dest" 2>/dev/null | grep -c '\.so$' || true)
+            echo "$dest — .so 数量: ${SO_COUNT:-0}"
+            ls -lh "$dest"
+          }
+
+          copy_flavor "originalArm" "$ROOT/artifacts/vstv-${VER}-arm.apk"
+          copy_flavor "originalX86" "$ROOT/artifacts/vstv-${VER}-x86_64.apk"
+          copy_flavor "disguisedArm" "$ROOT/artifacts/vstv-${VER}-HarmonyOS.apk"
+
+          echo "=== 即将上传的 artifacts ==="
+          ls -lh "$ROOT/artifacts/"
+
+      - name: Verify FFmpeg extension .so in packaged APKs
+        if: success()
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE"
+          VER="${{ steps.ver.outputs.version }}"
+
+          require_ffmpeg_so() {
+            local apk="$1"
+            local tag="$2"
+            if [[ ! -f "$apk" ]]; then
+              echo "::error::缺少 APK: $apk"
+              exit 1
+            fi
+            if ! unzip -l "$apk" | grep -Eiq "lib/.*/.*ffmpeg.*\\.so$"; then
+              echo "::error::${tag} 未检测到 FFmpeg 扩展 so（期望 lib/*/*ffmpeg*.so）"
+              unzip -l "$apk" | grep -E "lib/.+\\.so$" | head -n 100 || true
+              exit 1
+            fi
+            echo "${tag} FFmpeg so 校验通过"
+          }
+
+          require_ffmpeg_so "$ROOT/artifacts/vstv-${VER}-arm.apk" "arm"
+          require_ffmpeg_so "$ROOT/artifacts/vstv-${VER}-x86_64.apk" "x86_64"
+          require_ffmpeg_so "$ROOT/artifacts/vstv-${VER}-HarmonyOS.apk" "HarmonyOS"
+
+      # 优先使用 CHANGELOG.md 中对应「## [x.y.z]」章节作为 Release 正文；
+      # 若缺失则写入兜底文案（不阻断构建）。
+      - name: Prepare release notes from CHANGELOG
+        env:
+          VERSION_CORE: ${{ steps.ver.outputs.versionCore }}
+          VERSION_TAG: ${{ steps.ver.outputs.version }}
+        run: |
+          python3 << 'PY'
+          import os
+          import pathlib
+          import re
+
+          core = os.environ["VERSION_CORE"]
+          ver = os.environ["VERSION_TAG"]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = rf"^## \[{re.escape(core)}\].*?(?=^## \[|\Z)"
+          m = re.search(pattern, text, re.MULTILINE | re.DOTALL)
+          if m:
+              body = m.group(0).rstrip() + "\n"
+          else:
+              body = f"## [{core}]\\n\\n- 发布版本：{ver}\\n- 本次未在 CHANGELOG.md 中找到对应章节，已使用自动兜底说明。\\n"
+          pathlib.Path("release_body.md").write_text(body, encoding="utf-8")
+          print("---- release_body.md（预览，截断）----")
+          print(body[:4000] if len(body) > 4000 else body)
+          PY
+
+      # 分发仓库固定为 vesaaa/vstv（README / Release 对外）；源码在 vesaaa/vstv-src 时须 PAT 写权限。
+      # 在 vstv 本仓跑同一工作流时仍用默认 GITHUB_TOKEN 即可（与 repository 指向同一仓）。
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          token: ${{ github.repository == 'vesaaa/vstv-src' && secrets.PUBLIC_REPO_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          repository: vesaaa/vstv
+          # 顺序影响上传/部分 API 中资产排列；与 Package artifacts 中 copy 顺序一致，优先 arm
+          files: |
+            artifacts/vstv-${{ steps.ver.outputs.version }}-arm.apk
+            artifacts/vstv-${{ steps.ver.outputs.version }}-x86_64.apk
+            artifacts/vstv-${{ steps.ver.outputs.version }}-HarmonyOS.apk
+          body_path: release_body.md
+          generate_release_notes: false

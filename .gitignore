@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+# IDE：整目录忽略，避免提交本机配置
+/.idea/
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/deploymentTargetDropDown.xml
+/.idea/git_toolbox_prj.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/GrepConsole.xml
+/.idea/material_theme_project_new.xml
+/.idea/other.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+key.properties
