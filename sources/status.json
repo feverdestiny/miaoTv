@@ -1,0 +1,58 @@
+{
+  "fetched_at": "2026-08-17T08:37:13Z",
+  "generator": "miaoTv/scripts/aggregate_sources.py",
+  "upstreams": [
+    {
+      "id": "iptv-org-cn",
+      "name": "iptv-org/iptv",
+      "url": "https://iptv-org.github.io/iptv/countries/cn.m3u",
+      "http_status": 200,
+      "ok": true,
+      "error": null,
+      "channels_parsed": 141,
+      "channels_kept": 141
+    },
+    {
+      "id": "best-fan-cn-cctv",
+      "name": "best-fan/iptv-sources",
+      "url": "https://raw.githubusercontent.com/best-fan/iptv-sources/master/cn_cctv.m3u8",
+      "http_status": 200,
+      "ok": true,
+      "error": null,
+      "channels_parsed": 221,
+      "channels_kept": 221
+    },
+    {
+      "id": "best-fan-cn-all",
+      "name": "best-fan/iptv-sources",
+      "url": "https://raw.githubusercontent.com/best-fan/iptv-sources/master/cn_all.m3u8",
+      "http_status": 200,
+      "ok": true,
+      "error": null,
+      "channels_parsed": 426,
+      "channels_kept": 426
+    },
+    {
+      "id": "ccsh-live-lite",
+      "name": "CCSH/IPTV",
+      "url": "https://raw.githubusercontent.com/CCSH/IPTV/refs/heads/main/live_lite.m3u",
+      "http_status": 200,
+      "ok": true,
+      "error": null,
+      "channels_parsed": 2228,
+      "channels_kept": 2227
+    }
+  ],
+  "outputs": {
+    "cn.m3u": {
+      "channels": 2750
+    },
+    "cctv.m3u": {
+      "channels": 819
+    }
+  },
+  "dropped": {
+    "duplicates": 265,
+    "nsfw_or_meta": 1
+  }
+}
