@@ -1,24 +1,24 @@
 > 本仓库（[miaoTv](https://github.com/feverdestiny/miaoTv)）基于 [vesaaa/vstv](https://github.com/vesaaa/vstv) 标签 **v2.2.4-beta2** 整理，这是该项目最后一次公开发布源码的标签。
 
 <div align="center">
-    <h1>VsTV</h1>
+    <h1>miaoTv</h1>
     <p><strong>极致小巧 · 极速启动 · 纯净无广</strong></p>
     <p>面向电视与盒子的<strong>全能直播</strong>应用 · 遥控器 / 触屏深度优化</p>
 <div align="center">
 
-![GitHub repo size](https://img.shields.io/github/repo-size/vesaaa/vstv)
-![GitHub Repo stars](https://img.shields.io/github/stars/vesaaa/vstv)
-![GitHub all releases](https://img.shields.io/github/downloads/vesaaa/vstv/total)
+![GitHub repo size](https://img.shields.io/github/repo-size/feverdestiny/miaoTv)
+![GitHub repo stars](https://img.shields.io/github/stars/feverdestiny/miaoTv)
+![GitHub all releases](https://img.shields.io/github/downloads/feverdestiny/miaoTv/total)
 <br>
 🚀 <strong>体积不足 5MB</strong> | ⚡ <strong>秒开体验</strong> | 📺 <strong>支持 4K/组播/回看</strong>
 </div>
 </div>
 
-**VsTV** 让你在 **智能电视、电视盒子、平板或手机** 上收看直播频道：选台、换台、多线路、节目单、精选频道、比例与音量等常见需求都可在应用内完成。**首次安装不会写入默认直播源**，需在 **设置** 或浏览器访问 **`http://设备IP:1616`** 自行配置订阅地址与节目单。**本应用不提供任何直播源或节目内容**，请仅使用你已获得合法授权的地址。
+**miaoTv** 让你在 **智能电视、电视盒子、平板或手机** 上收看直播频道：选台、换台、多线路、节目单、精选频道、比例与音量等常见需求都可在应用内完成。**首次安装不会写入默认直播源**，需在 **设置** 或浏览器访问 **`http://设备IP:1616`** 自行配置订阅地址与节目单。**本应用不提供任何直播源或节目内容**，请仅使用你已获得合法授权的地址。
 
-**公开发布以 [Releases](https://github.com/vesaaa/vstv/releases) 为准：首个下载版本为 `1.0.0` 起**；后续可在应用内检查更新或手动下载新版 APK 覆盖安装（需系统允许安装未知应用）。
+**公开发布以 [Releases](https://github.com/feverdestiny/miaoTv/releases) 为准**；后续可在应用内检查更新或手动下载新版 APK 覆盖安装（需系统允许安装未知应用）。当前仓库尚无发行包时，应用内检查更新不会下载上游 VsTV 安装包。
 
-仓库与发行文件名常用标识 **vstv**，与包名、应用展示名一并区分于其他同名产品。
+仓库与发行文件名常用标识 **miaotv**，包名为 `com.feverdestiny.miaotv`。
 
 ---
 
@@ -45,11 +45,11 @@
 ### 1. 如何使用运营商组播 (UDP/RTP)？
 1. 在直播源订阅中直接填入 `udp://@239.x.x.x:xxxx` 或 `rtp://239.x.x.x:xxxx` 地址。
 2. 确保电视/盒子连接在 IPTV 专网（通常需接光猫 iTV 口或配置 VLAN）。
-3. **VsTV 会自动获取组播锁**并开启 2MB 超大接收缓冲区，无需任何额外配置即可享受零卡顿 4K 体验。
+3. **miaoTv 会自动获取组播锁**并开启 2MB 超大接收缓冲区，无需任何额外配置即可享受零卡顿 4K 体验。
 
 ### 2. 如何实现多源合并？
 1. 在设置中添加多个直播源（如：源 A 是央视高清，源 B 是地方频道）。
-2. VsTV 会自动按频道名称进行聚合。如果多个源包含同名频道（如「CCTV1」），选台界面会将其显示为「线路 1/2/3...」，左右键即可快速切线。
+2. miaoTv 会自动按频道名称进行聚合。如果多个源包含同名频道（如「CCTV1」），选台界面会将其显示为「线路 1/2/3...」，左右键即可快速切线。
 
 ### 3. 如何开启「老人模式」？
 1. **标记精选**：在选台列表中，长按 OK 键将频道加入精选。
@@ -99,7 +99,7 @@
 
 ## 直播源支持
 
-VsTV 支持常见的电视直播订阅格式，下面是最常用的 4 类：
+miaoTv 支持常见的电视直播订阅格式，下面是最常用的 4 类：
 
 - **标准 M3U 直播源**（最通用）
   - 典型结构：`#EXTM3U` + `#EXTINF` + 播放地址。
@@ -122,8 +122,8 @@ VsTV 支持常见的电视直播订阅格式，下面是最常用的 4 类：
     - `http://example.com/channels.txt`
 
 - **rtp2httpd 播放列表**
-  - 可直接填写 `rtp2httpd` 输出的播放列表 URL，VsTV 会按 M3U 方式读取。
-  - 若列表里是相对路径（如 `/rtp/...`、`./xx.ts`），VsTV 会自动按订阅地址做绝对化后播放。
+  - 可直接填写 `rtp2httpd` 输出的播放列表 URL，miaoTv 会按 M3U 方式读取。
+  - 若列表里是相对路径（如 `/rtp/...`、`./xx.ts`），miaoTv 会自动按订阅地址做绝对化后播放。
   - 适用场景：家里开通运营商 IPTV 后，通过软路由或 Docker 部署 `rtp2httpd`，在局域网内统一分发播放列表。
   - 简例：
     - `http://192.168.1.1:5140/playlist.m3u`
@@ -169,15 +169,15 @@ VsTV 支持常见的电视直播订阅格式，下面是最常用的 4 类：
 
 ## 下载与安装
 
-在 **[Releases](https://github.com/vesaaa/vstv/releases)** 下载 APK（**从 1.0.0 起提供公开构建**）。每个版本通常包含 **三个** 安装包，请按需选择：
+在 **[Releases](https://github.com/feverdestiny/miaoTv/releases)** 下载 APK。每个版本通常包含 **三个** 安装包，请按需选择：
 
 | 文件 | 适用说明 |
 |------|----------|
-| **`vstv-<版本>-arm.apk`** | **默认选择**：桌面显示 **VsTV**，包名 `com.vesaa.mytv`，适合大多数电视 / 盒子 / 手机（ARM 设备）。 |
-| **`vstv-<版本>-x86_64.apk`** | 适用于 **x86_64** 设备（常规包名 `com.vesaa.mytv`）。 |
-| **`vstv-<版本>-HarmonyOS.apk`** | **华为智慧屏 / 需不同包名** 时使用：桌面名 **Z视介**，包名 `com.chinablue.tv`，与常规包 **数据与更新通道不互通**，请勿混用升级包。 |
+| **`miaotv-<版本>-arm.apk`** | **默认选择**：桌面显示 **miaoTv**，包名 `com.feverdestiny.miaotv`，适合大多数电视 / 盒子 / 手机（ARM 设备）。 |
+| **`miaotv-<版本>-x86_64.apk`** | 适用于 **x86_64** 设备（常规包名 `com.feverdestiny.miaotv`）。 |
+| **`miaotv-<版本>-HarmonyOS.apk`** | **华为智慧屏 / 需不同包名** 时使用：桌面名 **miaoTv**，包名 `com.feverdestiny.miaotv.tv`，与常规包 **数据与更新通道不互通**，请勿混用升级包。 |
 
-应用内 **检查更新**：`2.0.0+` 按安装类型与设备架构匹配附件——常规包优先 `…-arm.apk` 或（x86/x86_64）`…-x86_64.apk`；**HarmonyOS** 变体（包名 `com.chinablue.tv`）仅匹配 `…-HarmonyOS.apk`。旧版本升级到 `2.0.0` 的首轮更新逻辑见 **[CHANGELOG](./CHANGELOG.md)** 中 `2.0.0` 说明。
+应用内 **检查更新**：按安装类型与设备架构匹配本仓库 Release 附件——常规包优先 `…-arm.apk` 或（x86/x86_64）`…-x86_64.apk`；**HarmonyOS** 变体（包名 `com.feverdestiny.miaotv.tv`）仅匹配 `…-HarmonyOS.apk`。历史版本说明见 **[CHANGELOG](./CHANGELOG.md)**。
 
 ---
 
@@ -203,7 +203,7 @@ VsTV 支持常见的电视直播订阅格式，下面是最常用的 4 类：
 
 ## 声明与免责
 
-1. **VsTV**（仓库标识 **vstv**）仅作为通用播放器工具按 **「现状」** 提供，作者及贡献者 **不对** 因使用本软件造成的任何直接、间接、偶然或后果性损害承担责任，包括但不限于：设备故障、数据丢失、流量费用、服务中断或内容合规争议等。  
+1. **miaoTv**（仓库标识 **miaotv**）仅作为通用播放器工具按 **「现状」** 提供，作者及贡献者 **不对** 因使用本软件造成的任何直接、间接、偶然或后果性损害承担责任，包括但不限于：设备故障、数据丢失、流量费用、服务中断或内容合规争议等。  
 2. 应用 **不内置、不提供、不分发任何直播源或节目内容**；用户需自行导入并仅使用已获得合法授权的地址。  
 3. 播放内容来自用户配置的第三方地址，本应用 **不控制、不审核、不托管、不缓存分发** 相关内容；应用仅提供本地播放能力。  
 4. 用户应自行确认其订阅地址、节目内容与使用行为符合所在地法律法规及服务条款；由此产生的风险与责任均由用户自行承担。  
@@ -213,7 +213,7 @@ VsTV 支持常见的电视直播订阅格式，下面是最常用的 4 类：
 
 ## 其他致谢
 
-以下为对有关开源项目及作者的**致谢与参考来源**（与上文「节目单模板与社区」区分）。**VsTV 本仓库独立维护**，与下列项目之间**不构成 Git 意义上的上游/下游或自动同步关系**；此处仅表达感谢与说明灵感来源。
+以下为对有关开源项目及作者的**致谢与参考来源**（与上文「节目单模板与社区」区分）。**miaoTv 本仓库独立维护**，与下列项目之间**不构成 Git 意义上的上游/下游或自动同步关系**；此处仅表达感谢与说明灵感来源。
 
 - [mytv-android](https://github.com/sakana164/mytv-android) 及贡献者  
 - [my-tv](https://github.com/lizongying/my-tv)  

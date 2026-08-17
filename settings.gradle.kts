@@ -34,6 +34,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "vstv"
+rootProject.name = "miaoTv"
 include(":app")
  

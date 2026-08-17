@@ -1,0 +1,279 @@
+package com.feverdestiny.miaotv.ui.screens.leanback.video
+
+import android.view.SurfaceView
+import android.view.TextureView
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.media3.common.text.Cue
+import com.feverdestiny.miaotv.ui.screens.leanback.video.player.LeanbackMedia3VideoPlayer
+import com.feverdestiny.miaotv.ui.screens.leanback.video.player.LeanbackVideoPlayer
+
+/**
+ * 播放器状态
+ */
+@Stable
+class LeanbackVideoPlayerState(
+    private val instance: LeanbackVideoPlayer,
+    private val defaultAspectRatioProvider: () -> Float? = { null },
+) {
+    /** 当前是否静音（用于分屏仅激活子屏发声） */
+    var isMuted by mutableStateOf(false)
+
+    private fun friendlyErrorText(ex: LeanbackVideoPlayer.PlaybackException): String {
+        val code = ex.errorCode
+        val raw = ex.errorCodeName.trim()
+        val upper = raw.uppercase()
+        return when {
+            code == 10002 || upper.contains("UNSUPPORTED_TYPE") ->
+                "当前线路格式暂不支持，请切换线路或反馈源格式($code)"
+            code == 10003 || upper.contains("LOAD_TIMEOUT") ->
+                "加载超时，请检查网络或切换线路后重试($code)"
+            code == 10004 || upper.contains("HEVC_ONLY") ->
+                "该频道仅提供 HEVC/H.265 视频，当前设备可能不支持($code)"
+            code == 10005 || upper.contains("MASTER_INVALID") || upper.contains("SINGLE_AUDIO") ->
+                "该频道清单异常或仅音频轨，无法正常出画($code)"
+            code == 10007 || upper.contains("SMIL_RESOLVE") ->
+                "无法解析该 RTSP 播放列表(SMIL)，请用设置开启播放诊断后反馈 MiaoTvSmil 日志($code)"
+            code == 3001 -> "源端分片/容器数据异常，请稍后重试或切换线路($code)"
+            code == 3002 -> "源端清单异常或分片错误，请稍后重试或切换线路($code)"
+            code in 3000..3999 && (upper.contains("AUTH") || upper.contains("401") || upper.contains("403")) ->
+                "源鉴权可能过期或被拒绝，请检查订阅/请求头($code)"
+            code in 3000..3999 -> "源端抖动或解析异常，请稍后重试或切换线路($code)"
+            code == 4001 || code in 4000..4099 || upper.contains("DECODING") || upper.contains("DECODER") || upper.contains("CODEC") ->
+                "解码失败，当前设备可能不支持该视频编码/参数($code)"
+            code in 2000..2999 || upper.contains("DECODER") || upper.contains("CODEC") ->
+                "解码初始化失败，可能是设备不支持该音视频编码($code)"
+            code in 4000..4999 || upper.contains("NETWORK") || upper.contains("IO") || upper.contains("CONNECT") ->
+                "网络连接异常，请检查网络或切换线路后重试($code)"
+            else -> "$raw($code)"
+        }
+    }
+
+    /** 视频宽高比 */
+    var aspectRatio by mutableFloatStateOf(16f / 9f)
+
+    /** 错误 */
+    var error by mutableStateOf<String?>(null)
+
+    /** 元数据 */
+    var metadata by mutableStateOf(LeanbackVideoPlayer.Metadata())
+
+    /** 当前正在拉流的地址（含回看/多线路切换后的实际 URL），供 UI 展示 */
+    var currentMediaUrl by mutableStateOf("")
+    /** 轨道选择变更计数，用于驱动轨道菜单重组刷新选中标记。 */
+    var trackSelectionVersion by mutableIntStateOf(0)
+    /** 切台后在首帧到来前强制黑场，避免显示上一频道最后一帧 */
+    var holdBlackScreen by mutableStateOf(false)
+    /** 当前字幕 cues（含文本/位图），由播放器事件回调更新。 */
+    val subtitleCues = mutableStateListOf<Cue>()
+
+    /** 字幕轨道选中 ID（Compose State，直接驱动 UI 勾选）。null = 未选中任何字幕。 */
+    private var selectedSubtitleTrackId by mutableStateOf<String?>(null)
+    /** 防止同一次按键 handleLeanbackKeyEvents + ListItem.onClick 双触发导致 toggle 抵消。 */
+    private var lastSubtitleToggleMs = 0L
+
+    fun prepare(
+        url: String,
+        streamRequestHeaders: String? = null,
+        playbackLabel: String? = null,
+    ) {
+        error = null
+        holdBlackScreen = true
+        currentMediaUrl = url.trim()
+        selectedSubtitleTrackId = null
+        subtitleCues.clear()
+        instance.onDeactivate()
+        instance.prepare(url, streamRequestHeaders, playbackLabel)
+    }
+
+    /** 分屏退出或子屏释放时调用，停止当前会话并清空展示态。 */
+    fun stop() {
+        instance.onDeactivate()
+        error = null
+        holdBlackScreen = false
+        currentMediaUrl = ""
+        metadata = LeanbackVideoPlayer.Metadata()
+        subtitleCues.clear()
+        selectedSubtitleTrackId = null
+    }
+
+    fun play() {
+        instance.play()
+    }
+
+    fun pause() {
+        instance.pause()
+    }
+
+    fun applyMuted(muted: Boolean) {
+        isMuted = muted
+        instance.setMuted(muted)
+    }
+
+    fun setVideoSurfaceView(surfaceView: SurfaceView) {
+        instance.setVideoSurfaceView(surfaceView)
+    }
+
+    fun setVideoTextureView(textureView: TextureView) {
+        instance.setVideoTextureView(textureView)
+    }
+
+    fun seekTo(positionMs: Long) {
+        instance.seekTo(positionMs)
+    }
+
+    fun seekToDefaultPosition() {
+        instance.seekToDefaultPosition()
+    }
+
+    fun seekBack(offsetMs: Long) {
+        instance.seekBack(offsetMs)
+    }
+
+    fun getTrackOptions(type: LeanbackVideoPlayer.TrackType): List<LeanbackVideoPlayer.TrackOption> {
+        val options = instance.getTrackOptions(type)
+        if (type != LeanbackVideoPlayer.TrackType.Subtitle) return options
+        val localId = selectedSubtitleTrackId
+        // null：沿用播放器真实选中态（含自动启用首条字幕）；非 null：由本地勾选驱动 UI。
+        if (localId == null) return options
+        return options.map { it.copy(selected = localId == it.id) }
+    }
+
+    fun selectTrack(type: LeanbackVideoPlayer.TrackType, trackId: String) {
+        if (type == LeanbackVideoPlayer.TrackType.Subtitle) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastSubtitleToggleMs < 300) return
+            lastSubtitleToggleMs = now
+            val turningOff = selectedSubtitleTrackId == trackId
+            if (turningOff) {
+                selectedSubtitleTrackId = null
+                instance.selectTrack(type, trackId)
+            } else {
+                // 读取播放器原始选中态判断是否已播放，避免 selectedSubtitleTrackId 本地状态污染判断。
+                val rawOptions = instance.getTrackOptions(type)
+                val alreadyPlaying = rawOptions.any { it.id == trackId && it.selected }
+                if (!alreadyPlaying) {
+                    instance.selectTrack(type, trackId)
+                }
+                selectedSubtitleTrackId = trackId
+            }
+            trackSelectionVersion += 1
+            return
+        }
+        instance.selectTrack(type, trackId)
+        trackSelectionVersion += 1
+    }
+
+    private val onReadyListeners = mutableListOf<() -> Unit>()
+    private val onErrorListeners = mutableListOf<() -> Unit>()
+    private val onCutoffListeners = mutableListOf<() -> Unit>()
+
+    fun onReady(listener: () -> Unit) {
+        onReadyListeners.add(listener)
+    }
+
+    fun onError(listener: () -> Unit) {
+        onErrorListeners.add(listener)
+    }
+
+    fun onCutoff(listener: () -> Unit) {
+        onCutoffListeners.add(listener)
+    }
+
+    fun initialize() {
+        instance.initialize()
+        instance.onResolution { width, height ->
+            val defaultAspectRatio = defaultAspectRatioProvider()
+
+            if (defaultAspectRatio == null) {
+                if (width > 0 && height > 0) aspectRatio = width.toFloat() / height
+            } else {
+                aspectRatio = defaultAspectRatio
+            }
+        }
+        instance.onError { ex ->
+            error = if (ex != null) friendlyErrorText(ex)
+            else null
+            if (error != null) holdBlackScreen = false
+
+            if (error != null) onErrorListeners.forEach { it.invoke() }
+
+        }
+        instance.onReady { onReadyListeners.forEach { it.invoke() } }
+        instance.onBuffering { if (it) error = null }
+        instance.onPrepared { }
+        instance.onMetadata {
+            metadata = it
+            // 一旦真正有视频帧，或进入图片轮播模式，就解除首帧黑场保护。
+            if (it.videoRenderedFps > 0f || it.imageSequenceModeHint) {
+                holdBlackScreen = false
+            }
+        }
+        instance.onSubtitle {
+            subtitleCues.clear()
+            subtitleCues.addAll(it)
+        }
+        instance.onCutoff { onCutoffListeners.forEach { it.invoke() } }
+        instance.onTrackSelectionChanged { trackSelectionVersion += 1 }
+    }
+
+    fun release() {
+        onReadyListeners.clear()
+        onErrorListeners.clear()
+        instance.release()
+    }
+}
+
+@Composable
+fun rememberLeanbackVideoPlayerState(
+    defaultAspectRatioProvider: () -> Float? = { null },
+): LeanbackVideoPlayerState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
+    val state = remember {
+        LeanbackVideoPlayerState(
+            LeanbackMedia3VideoPlayer(context, coroutineScope),
+            defaultAspectRatioProvider = defaultAspectRatioProvider,
+        )
+    }
+
+    DisposableEffect(Unit) {
+        state.initialize()
+
+        onDispose {
+            state.release()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                state.play()
+            } else if (event == Lifecycle.Event.ON_STOP) {
+                state.pause()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    return state
+}

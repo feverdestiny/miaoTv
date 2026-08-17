@@ -1,0 +1,55 @@
+package com.feverdestiny.miaotv.data.work
+
+import android.content.Context
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
+import com.feverdestiny.miaotv.data.utils.Constants
+import com.feverdestiny.miaotv.ui.utils.SP
+
+/**
+ * 注册 / 取消「周期拉取 EPG」的 WorkManager 任务。
+ */
+object EpgRefreshWorkScheduler {
+
+    private const val UNIQUE_NAME = "epg_refresh_periodic"
+
+    fun schedule(context: Context) {
+        val appCtx = context.applicationContext
+        val effectiveEpgUrl = SP.iptvSourceEmbeddedEpgUrl.trim().ifBlank { SP.epgXmlUrl.trim() }
+        if (!SP.epgEnable || effectiveEpgUrl.isBlank()) {
+            cancel(appCtx)
+            return
+        }
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = PeriodicWorkRequestBuilder<EpgRefreshWorker>(
+            Constants.EPG_BACKGROUND_REFRESH_INTERVAL_HOURS,
+            TimeUnit.HOURS,
+        )
+            .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                15,
+                TimeUnit.MINUTES,
+            )
+            .build()
+
+        WorkManager.getInstance(appCtx).enqueueUniquePeriodicWork(
+            UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request,
+        )
+    }
+
+    fun cancel(context: Context) {
+        WorkManager.getInstance(context.applicationContext).cancelUniqueWork(UNIQUE_NAME)
+    }
+}

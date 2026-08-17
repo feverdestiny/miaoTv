@@ -1,0 +1,108 @@
+package com.feverdestiny.miaotv.data.entities
+
+import androidx.compose.runtime.Immutable
+import kotlinx.serialization.Serializable
+import java.util.Locale
+
+/**
+ * 频道节目单
+ */
+@Immutable
+@Serializable
+data class Epg(
+    /**
+     * 频道名称（XML display-name）
+     */
+    val channel: String = "",
+
+    /**
+     * 节目列表
+     */
+    val programmes: EpgProgrammeList = EpgProgrammeList(),
+
+    /**
+     * XMLTV channel 的 id，与 M3U 的 tvg-id 对应
+     */
+    val channelId: String = "",
+    /**
+     * XMLTV channel 的 display-name 别名（含主名）
+     */
+    val channelAliases: List<String> = emptyList(),
+) {
+    private fun normalizeChannelName(raw: String): String {
+        return raw
+            .trim()
+            .lowercase(Locale.ROOT)
+            .replace("超高清", "")
+            .replace("高清", "")
+            .replace("标清", "")
+            .replace("频道", "")
+            .replace(Regex("""[\s\-_/()（）【】\[\]·•]+"""), "")
+    }
+
+    /** 是否与该直播频道为同一套节目单（名称忽略大小写，或 tvg-id 与 channel id 一致） */
+    fun matchesIptv(iptv: Iptv): Boolean {
+        val id = channelId.trim()
+        val t = iptv.tvgId.trim()
+        if (id.isNotEmpty() && t.isNotEmpty() && id == t) return true
+        val cn = iptv.channelName.trim()
+        if (channel.isNotEmpty() && cn.isNotEmpty() && channel.equals(cn, ignoreCase = true)) return true
+        val nm = iptv.name.trim()
+        if (channel.isNotEmpty() && nm.isNotEmpty() && channel.equals(nm, ignoreCase = true)) return true
+        val aliases = buildList {
+            if (channel.isNotBlank()) add(channel)
+            channelAliases.filter { it.isNotBlank() }.forEach { add(it) }
+            if (id.isNotBlank()) add(id)
+        }
+        if (aliases.any { a -> cn.isNotEmpty() && a.equals(cn, ignoreCase = true) }) return true
+        if (aliases.any { a -> nm.isNotEmpty() && a.equals(nm, ignoreCase = true) }) return true
+        val normChannel = normalizeChannelName(channel)
+        val normAliases = aliases.map(::normalizeChannelName).filter { it.isNotEmpty() }
+        if (normChannel.isNotEmpty() || normAliases.isNotEmpty()) {
+            val normCn = normalizeChannelName(cn)
+            if (normCn.isNotEmpty() && (normChannel == normCn || normAliases.any { it == normCn })) return true
+            val normNm = normalizeChannelName(nm)
+            if (normNm.isNotEmpty() && (normChannel == normNm || normAliases.any { it == normNm })) return true
+        }
+        return false
+    }
+
+    companion object {
+        /**
+         * 当前节目/下一个节目
+         */
+        fun Epg.currentProgrammes(): EpgProgrammeCurrent? {
+            if (programmes.isEmpty()) return null
+            val nowMs = System.currentTimeMillis()
+
+            val timed = programmes
+                .filter { it.endAt > it.startAt && it.startAt > 0L }
+                .sortedBy { it.startAt }
+
+            if (timed.isEmpty()) {
+                val fallback = programmes.filter { it.title.isNotBlank() }.ifEmpty { programmes.toList() }
+                if (fallback.isEmpty()) return null
+                return EpgProgrammeCurrent(now = fallback.first(), next = fallback.getOrNull(1))
+            }
+
+            val liveIdx = timed.indexOfFirst { nowMs >= it.startAt && nowMs < it.endAt }
+            if (liveIdx >= 0) {
+                return EpgProgrammeCurrent(
+                    now = timed[liveIdx],
+                    next = timed.getOrNull(liveIdx + 1),
+                )
+            }
+
+            if (nowMs < timed.first().startAt) {
+                return EpgProgrammeCurrent(now = null, next = timed.first())
+            }
+
+            if (nowMs >= timed.last().endAt) {
+                return EpgProgrammeCurrent(now = timed.last(), next = null)
+            }
+
+            val nextStart = timed.firstOrNull { nowMs < it.startAt }
+            return EpgProgrammeCurrent(now = null, next = nextStart)
+        }
+    }
+}

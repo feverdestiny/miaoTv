@@ -37,11 +37,11 @@ val resolvedVersionCode =
 val ciUseDebugSigning = project.hasProperty("ciUseDebugSigning")
 
 android {
-    namespace = "com.vesaa.mytv"
+    namespace = "com.feverdestiny.miaotv"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.vesaa.mytv"
+        applicationId = "com.feverdestiny.miaotv"
         minSdk = 21
         targetSdk = 34
         versionCode = resolvedVersionCode
@@ -65,8 +65,8 @@ android {
         }
         create("disguised") {
             dimension = "dist"
-            applicationId = "com.chinablue.tv"
-            resValue("string", "app_name", "Z视介")
+            applicationId = "com.feverdestiny.miaotv.tv"
+            resValue("string", "app_name", "miaoTv")
         }
         create("arm") {
             dimension = "abiPack"
