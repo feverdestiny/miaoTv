@@ -1,0 +1,40 @@
+name: Update IPTV sources
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 04:00 Asia/Shanghai (UTC+8, no DST)
+    - cron: "0 20 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-sources-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Aggregate public playlists
+        run: python3 scripts/aggregate_sources.py
+
+      - name: Commit and push if sources/ changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sources/
+          if git diff --cached --quiet; then
+            echo "sources/ unchanged; skip commit"
+            exit 0
+          fi
+          git commit -m "chore(sources): refresh aggregated public IPTV playlists"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
