@@ -9,6 +9,7 @@ import com.feverdestiny.miaotv.AppGlobal
 import com.feverdestiny.miaotv.data.entities.IptvGroupList
 import com.feverdestiny.miaotv.data.repositories.FileCacheRepository
 import com.feverdestiny.miaotv.data.repositories.iptv.parser.IptvParser
+import com.feverdestiny.miaotv.defaults.IptvDefaultSubscription
 import com.feverdestiny.miaotv.utils.AppOkHttp
 import com.feverdestiny.miaotv.utils.Logger
 import com.feverdestiny.miaotv.utils.IptvOutboundHeaderPolicy
@@ -25,7 +26,8 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
     private val m3uEpgAttrRegex = Regex("""\b(?:x-tvg-url|url-tvg)\s*=\s*(['"])(.*?)\1""", RegexOption.IGNORE_CASE)
 
     /**
-     * 获取远程直播源数据
+     * 获取远程直播源数据。
+     * 默认订阅按 jsDelivr → gh-proxy → GitHub raw 回退；自定义地址只请求用户填写的 URL。
      */
     private suspend fun fetchSource(sourceUrl: String, requestHeadersText: String) =
         withContext(Dispatchers.IO) {
@@ -39,28 +41,49 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
             return@withContext text
         }
 
+        val urls = IptvDefaultSubscription.fetchUrlsFor(sourceUrl)
+        val requireM3u = IptvDefaultSubscription.isBuiltin(sourceUrl)
+        var lastError: Exception? = null
+        for (url in urls) {
+            try {
+                return@withContext fetchRemotePlaylist(url, requestHeadersText, requireM3u)
+            } catch (ex: Exception) {
+                lastError = ex
+                log.e("获取远程直播源失败: $url", ex)
+            }
+        }
+        throw Exception("获取远程直播源失败，请检查网络连接", lastError)
+    }
+
+    private fun fetchRemotePlaylist(
+        url: String,
+        requestHeadersText: String,
+        requireM3u: Boolean,
+    ): String {
+        log.d("拉取直播源: $url")
         val client = AppOkHttp.client()
         val norm = normalizeIptvRequestHeadersInput(requestHeadersText)
         val blended =
-            IptvOutboundHeaderPolicy.applyToNormalizedHeadersText(norm, sourceUrl)
+            IptvOutboundHeaderPolicy.applyToNormalizedHeadersText(norm, url)
         val headerMap = blended.parseHttpHeaderLines()
-        val reqBuilder = Request.Builder().url(sourceUrl)
+        val reqBuilder = Request.Builder().url(url)
         if (headerMap.isNotEmpty()) {
             reqBuilder.headers(headerMap.toOkHttpHeaders())
         }
         val request = reqBuilder.build()
 
-        try {
-            with(client.newCall(request).execute()) {
-                if (!isSuccessful) {
-                    throw Exception("获取远程直播源失败: $code")
-                }
-
-                return@with body!!.string()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw Exception("获取远程直播源失败: ${response.code}")
             }
-        } catch (ex: Exception) {
-            log.e("获取远程直播源失败", ex)
-            throw Exception("获取远程直播源失败，请检查网络连接", ex)
+            val text = response.body?.string().orEmpty()
+            if (text.isBlank()) {
+                throw Exception("获取远程直播源失败: 内容为空")
+            }
+            if (requireM3u && !IptvDefaultSubscription.isValidDefaultPlaylist(text)) {
+                throw Exception("获取远程直播源失败: 不是有效的 M3U")
+            }
+            return text
         }
     }
 

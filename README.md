@@ -14,7 +14,7 @@
 </div>
 </div>
 
-**miaoTv** 让你在 **智能电视、电视盒子、平板或手机** 上收看直播频道：选台、换台、多线路、节目单、精选频道、比例与音量等常见需求都可在应用内完成。**首次安装默认订阅**为本仓库聚合列表 [`sources/cn.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)；仅看央视可用 [`sources/cctv.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u)。可在 **设置 → 直播源** 或浏览器访问 **`http://设备IP:1616`** 自行更换。**应用不把频道流地址打进 APK**，请仅使用你已获得合法授权的地址。
+**miaoTv** 让你在 **智能电视、电视盒子、平板或手机** 上收看直播频道：选台、换台、多线路、节目单、精选频道、比例与音量等常见需求都可在应用内完成。**首次安装默认订阅**为本仓库聚合列表 [`sources/cn.m3u`](https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u)。应用会按国内可访问顺序拉取：先 [jsDelivr](https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u)，失败再 [gh-proxy](https://gh-proxy.com/https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)，最后 [GitHub raw](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)；**jsDelivr 可能缓存数小时**。该回退只作用于内置默认订阅，不会改写你在设置里填写的自定义地址。仅看央视可用 [`sources/cctv.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u)。可在 **设置 → 直播源** 或浏览器访问 **`http://设备IP:1616`** 自行更换。**应用不把频道流地址打进 APK**，请仅使用你已获得合法授权的地址。
 
 **公开发布以 [Releases](https://github.com/feverdestiny/miaoTv/releases) 为准**；后续可在应用内检查更新或手动下载新版 APK 覆盖安装（需系统允许安装未知应用）。当前仓库尚无发行包时，应用内检查更新不会下载上游 VsTV 安装包。
 
@@ -64,7 +64,7 @@
 
 ## 首次配置说明
 
-- **直播源**：新安装默认使用本仓库 [`sources/cn.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)（中国频道聚合）。仅看央视可在 **设置 → 直播源** 改为 [`sources/cctv.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u)。也可在设置或 **网页配置页** 填写你自己的 M3U / tvbox 风格 TXT 等地址。
+- **直播源**：新安装默认使用本仓库 [`sources/cn.m3u`](https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u)（中国频道聚合）。国内网络依次尝试 [jsDelivr](https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u) → [gh-proxy](https://gh-proxy.com/https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u) → [GitHub raw](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)；jsDelivr 可能缓存数小时。仅看央视可在 **设置 → 直播源** 改为 [`sources/cctv.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u)。也可在设置或 **网页配置页** 填写你自己的 M3U / tvbox 风格 TXT 等地址（自定义地址不会走上述回退）。
 - **节目单**：提供上述 **两套 EPG 模板** 作为可选起点，你可在设置中改为自己的 XMLTV 地址或关闭节目单。
 - **订阅地址来源**：请仅使用你已获得合法授权的订阅地址；请自行核验来源合法性、服务条款与可用性。
 
