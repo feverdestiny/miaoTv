@@ -17,9 +17,15 @@ object Constants {
     const val APP_REPO = "https://github.com/feverdestiny/miaoTv"
 
     /**
-     * 默认 IPTV 订阅地址（新安装在设置为空时使用；本仓库聚合列表 `sources/cn.m3u`）
+     * 默认 IPTV 订阅地址（新安装在设置为空时使用；本仓库聚合列表 `sources/cn.m3u`，首选 jsDelivr）
      */
     val IPTV_SOURCE_URL: String get() = AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_URL
+
+    /**
+     * 默认订阅的国内可访问镜像（jsDelivr → gh-proxy → GitHub raw）。
+     * 获取层在当前地址属于该集合时按此顺序回退，不覆盖用户自定义订阅。
+     */
+    val IPTV_BUILTIN_SOURCE_URLS: List<String> get() = AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_FALLBACKS
 
     /**
      * 拉取上述源时的默认请求头；GitHub raw 无需 UA，默认空。单行无冒号即作为 User-Agent。
