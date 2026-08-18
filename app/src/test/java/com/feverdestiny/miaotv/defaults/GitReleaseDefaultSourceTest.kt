@@ -9,34 +9,52 @@ import org.junit.Test
 
 class GitReleaseDefaultSourceTest {
 
+    private val listApi =
+        "https://api.github.com/repos/feverdestiny/miaoTv/releases?per_page=20"
+    private val listApiProxy = "https://gh-proxy.com/$listApi"
+    private val latestApi =
+        "https://api.github.com/repos/feverdestiny/miaoTv/releases/latest"
+    private val latestApiProxy = "https://gh-proxy.com/$latestApi"
+
     @Test
-    fun defaultFirstTryIsGhProxyThenOfficialGithubApi() {
+    fun defaultFirstTryIsGhProxyThenOfficialListApi() {
+        assertEquals(listApi, AppBuiltinEndpoints.GIT_RELEASE_LIST_API)
         assertEquals(
-            "https://api.github.com/repos/feverdestiny/miaoTv/releases/latest",
-            AppBuiltinEndpoints.GIT_RELEASE_LATEST_API,
-        )
-        assertEquals(
-            listOf(
-                "https://gh-proxy.com/https://api.github.com/repos/feverdestiny/miaoTv/releases/latest",
-                "https://api.github.com/repos/feverdestiny/miaoTv/releases/latest",
-            ),
-            GitReleaseDefaultSource.fetchUrlsFor(AppBuiltinEndpoints.GIT_RELEASE_LATEST_API),
+            listOf(listApiProxy, listApi),
+            GitReleaseDefaultSource.fetchUrlsFor(AppBuiltinEndpoints.GIT_RELEASE_LIST_API),
         )
     }
 
     @Test
-    fun proxiedBuiltinApiAlsoGetsFullFallbackChain() {
+    fun proxiedListApiAlsoGetsFullFallbackChain() {
+        assertEquals(
+            GitReleaseDefaultSource.fetchUrlsFor(AppBuiltinEndpoints.GIT_RELEASE_LIST_API),
+            GitReleaseDefaultSource.fetchUrlsFor(
+                AppBuiltinEndpoints.GIT_RELEASE_LIST_API_GH_PROXY,
+            ),
+        )
+        assertTrue(
+            GitReleaseDefaultSource.isBuiltinLatestApi(
+                AppBuiltinEndpoints.GIT_RELEASE_LIST_API_GH_PROXY,
+            ),
+        )
+    }
+
+    @Test
+    fun oldLatestApiStillExpandsToListApiChain() {
+        assertEquals(latestApi, AppBuiltinEndpoints.GIT_RELEASE_LATEST_API)
+        assertEquals(
+            listOf(listApiProxy, listApi),
+            GitReleaseDefaultSource.fetchUrlsFor(AppBuiltinEndpoints.GIT_RELEASE_LATEST_API),
+        )
         assertEquals(
             GitReleaseDefaultSource.fetchUrlsFor(AppBuiltinEndpoints.GIT_RELEASE_LATEST_API),
             GitReleaseDefaultSource.fetchUrlsFor(
                 AppBuiltinEndpoints.GIT_RELEASE_LATEST_API_GH_PROXY,
             ),
         )
-        assertTrue(
-            GitReleaseDefaultSource.isBuiltinLatestApi(
-                AppBuiltinEndpoints.GIT_RELEASE_LATEST_API_GH_PROXY,
-            ),
-        )
+        assertTrue(GitReleaseDefaultSource.isBuiltinLatestApi(latestApi))
+        assertTrue(GitReleaseDefaultSource.isBuiltinLatestApi(latestApiProxy))
     }
 
     @Test
@@ -98,11 +116,14 @@ class GitReleaseDefaultSourceTest {
     }
 
     @Test
-    fun githubParserStillMatchesProxiedLatestApi() {
-        val proxied = AppBuiltinEndpoints.GIT_RELEASE_LATEST_API_GH_PROXY
-        assertTrue(proxied.contains("github.com"))
-        assertTrue(GithubGitReleaseParser().isSupport(proxied))
+    fun githubParserStillMatchesProxiedListAndLatestApi() {
+        val proxiedList = AppBuiltinEndpoints.GIT_RELEASE_LIST_API_GH_PROXY
+        val proxiedLatest = AppBuiltinEndpoints.GIT_RELEASE_LATEST_API_GH_PROXY
+        assertTrue(proxiedList.contains("github.com"))
+        assertTrue(GithubGitReleaseParser().isSupport(proxiedList))
+        assertTrue(GithubGitReleaseParser().isSupport(AppBuiltinEndpoints.GIT_RELEASE_LIST_API))
+        assertTrue(GithubGitReleaseParser().isSupport(proxiedLatest))
         assertTrue(GithubGitReleaseParser().isSupport(AppBuiltinEndpoints.GIT_RELEASE_LATEST_API))
-        assertFalse(GiteeGitReleaseParser().isSupport(proxied))
+        assertFalse(GiteeGitReleaseParser().isSupport(proxiedList))
     }
 }
