@@ -4,8 +4,21 @@ package com.feverdestiny.miaotv.defaults
  * 首装默认端点与更新检查地址（与源码同仓维护；不再使用 CI 解密 proprietary bundle）。
  */
 object AppBuiltinEndpoints {
+    /** 公开 GitHub 代理前缀（国内可访问）；后面接完整 https://github.com/... 或 api.github.com URL。 */
+    const val GITHUB_PROXY_PREFIX = "https://gh-proxy.com/"
+
     const val GIT_RELEASE_LATEST_API =
         "https://api.github.com/repos/feverdestiny/miaoTv/releases/latest"
+
+    const val GIT_RELEASE_LATEST_API_GH_PROXY =
+        GITHUB_PROXY_PREFIX + GIT_RELEASE_LATEST_API
+
+    /**
+     * 应用内检查更新的拉取顺序：gh-proxy → 官方 GitHub Releases API。
+     * 仅用于获取层回退，不改写用户自定义检查地址。
+     */
+    val GIT_RELEASE_LATEST_API_FALLBACKS: List<String> =
+        listOf(GIT_RELEASE_LATEST_API_GH_PROXY, GIT_RELEASE_LATEST_API)
 
     /** 默认订阅首选（国内可访问）；失败时按 [IPTV_DEFAULT_SUBSCRIPTION_FALLBACKS] 依次回退。 */
     const val IPTV_DEFAULT_SUBSCRIPTION_URL =

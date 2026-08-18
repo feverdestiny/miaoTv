@@ -82,7 +82,8 @@ class LeanBackUpdateViewModel : ViewModel() {
     val pendingInstallApkPath: SharedFlow<String> = _pendingInstallApkPath.asSharedFlow()
 
     /**
-     * 从 [Constants.GIT_RELEASE_LATEST_URL] 拉取最新 Release，与当前安装版本比较。
+     * 从 [Constants.GIT_RELEASE_LATEST_URL] 拉取最新 Release（获取层按 gh-proxy → 官方 API 回退），
+     * 与当前安装版本比较。
      * @return 是否成功完成请求与解析（网络失败等为 false，见 [lastCheckError]）
      */
     suspend fun checkUpdate(currentVersion: String): Boolean {
