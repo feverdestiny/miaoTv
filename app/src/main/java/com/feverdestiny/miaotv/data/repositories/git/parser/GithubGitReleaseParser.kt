@@ -23,7 +23,7 @@ class GithubGitReleaseParser : GitReleaseParser {
                 "Release 中没有与本机渠道/CPU 匹配的 APK。" +
                     "鸿蒙变体仅升鸿蒙附件；原味 ARM 仅 arm 包；原味 x86 仅 x86_64 包，互不混用。"
             )
-        // 使用 GitHub 直链：mirror.ghproxy.com 等第三方镜像易失效，会导致「下载更新失败」
+        // 解析结果保留 GitHub 直链；下载层再按 gh-proxy → 官方直链回退
         return GitRelease(
             version = json.getValue("tag_name").jsonPrimitive.content.removePrefix("v").trim(),
             downloadUrl = url,

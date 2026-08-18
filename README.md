@@ -16,7 +16,7 @@
 
 **miaoTv** 让你在 **智能电视、电视盒子、平板或手机** 上收看直播频道：选台、换台、多线路、节目单、精选频道、比例与音量等常见需求都可在应用内完成。**首次安装默认订阅**为本仓库聚合列表 [`sources/cn.m3u`](https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u)。应用会按国内可访问顺序拉取：先 [jsDelivr](https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u)，失败再 [gh-proxy](https://gh-proxy.com/https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)，最后 [GitHub raw](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u)；**jsDelivr 可能缓存数小时**。该回退只作用于内置默认订阅，不会改写你在设置里填写的自定义地址。仅看央视可用 [`sources/cctv.m3u`](https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u)。可在 **设置 → 直播源** 或浏览器访问 **`http://设备IP:1616`** 自行更换。**应用不把频道流地址打进 APK**，请仅使用你已获得合法授权的地址。
 
-**公开发布以 [Releases](https://github.com/feverdestiny/miaoTv/releases) 为准**；后续可在应用内检查更新或手动下载新版 APK 覆盖安装（需系统允许安装未知应用）。当前仓库尚无发行包时，应用内检查更新不会下载上游 VsTV 安装包。
+**公开发布以 [Releases](https://github.com/feverdestiny/miaoTv/releases) 为准**；后续可在应用内检查更新或手动下载新版 APK 覆盖安装（需系统允许安装未知应用）。应用内检查更新与 APK 下载与直播源同一套国内访问策略：先试 [gh-proxy](https://gh-proxy.com/)，失败再回退官方 GitHub（Releases API / 附件直链）。当前仓库尚无发行包时，应用内检查更新不会下载上游 VsTV 安装包。
 
 仓库与发行文件名常用标识 **miaotv**，包名为 `com.feverdestiny.miaotv`。
 
@@ -90,7 +90,7 @@
 |------|
 | 在电视桌面出现图标：已同时适配电视与手机类桌面入口 |
 | 允许 **http** 明文地址，便于常见 IPTV / 节目单链接 |
-| 应用内 **检查更新** 会从本仓库 Release 拉取与当前安装包类型匹配的 APK |
+| 应用内 **检查更新** 会从本仓库 Release 拉取与当前安装包类型匹配的 APK（先 gh-proxy，再官方 GitHub） |
 | **1616 端口** 提供网页配置页；网页依赖公共 CDN（如 jsDelivr），请确保网络可访问 |
 | Android 11+ 需在系统中允许本应用 **安装未知应用**，否则更新或外部 APK 可能无反应 |
 | **开机自启** 依赖系统广播；部分品牌需在系统设置中允许 **自启动 / 后台活动** 才可能生效 |
@@ -177,7 +177,7 @@ miaoTv 支持常见的电视直播订阅格式，下面是最常用的 4 类：
 | **`miaotv-<版本>-x86_64.apk`** | 适用于 **x86_64** 设备（常规包名 `com.feverdestiny.miaotv`）。 |
 | **`miaotv-<版本>-HarmonyOS.apk`** | **华为智慧屏 / 需不同包名** 时使用：桌面名 **miaoTv**，包名 `com.feverdestiny.miaotv.tv`，与常规包 **数据与更新通道不互通**，请勿混用升级包。 |
 
-应用内 **检查更新**：按安装类型与设备架构匹配本仓库 Release 附件——常规包优先 `…-arm.apk` 或（x86/x86_64）`…-x86_64.apk`；**HarmonyOS** 变体（包名 `com.feverdestiny.miaotv.tv`）仅匹配 `…-HarmonyOS.apk`。历史版本说明见 **[CHANGELOG](./CHANGELOG.md)**。
+应用内 **检查更新**：按安装类型与设备架构匹配本仓库 Release 附件——常规包优先 `…-arm.apk` 或（x86/x86_64）`…-x86_64.apk`；**HarmonyOS** 变体（包名 `com.feverdestiny.miaotv.tv`）仅匹配 `…-HarmonyOS.apk`。检查与下载均先试 [gh-proxy](https://gh-proxy.com/)，失败再回退官方 GitHub。历史版本说明见 **[CHANGELOG](./CHANGELOG.md)**。
 
 ---
 

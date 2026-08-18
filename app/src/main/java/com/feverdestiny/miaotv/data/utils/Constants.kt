@@ -50,9 +50,13 @@ object Constants {
     val EPG_BUILTIN_XML_URLS: List<String> get() = AppBuiltinEndpoints.EPG_BUILTIN_ORDERED
 
     /**
-     * Git 最新版本检查（GitHub Releases API）
+     * Git 最新版本检查（GitHub Releases API）。
+     * 获取层按 gh-proxy → 官方 API 回退，见 [GIT_RELEASE_LATEST_URLS]。
      */
     val GIT_RELEASE_LATEST_URL: String get() = AppBuiltinEndpoints.GIT_RELEASE_LATEST_API
+
+    /** 内置检查更新地址列表（顺序：gh-proxy → 官方 GitHub API） */
+    val GIT_RELEASE_LATEST_URLS: List<String> get() = AppBuiltinEndpoints.GIT_RELEASE_LATEST_API_FALLBACKS
 
     /**
      * 节目单刷新时间阈值（小时）

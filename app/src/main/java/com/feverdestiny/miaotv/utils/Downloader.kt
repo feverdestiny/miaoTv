@@ -12,36 +12,53 @@ import okhttp3.Interceptor
 import okio.BufferedSource
 import okio.ForwardingSource
 import okio.buffer
+import com.feverdestiny.miaotv.defaults.GitReleaseDefaultSource
 
 object Downloader : Loggable() {
+    /**
+     * 下载到本地。GitHub / githubusercontent 附件按 gh-proxy → 直链回退；
+     * 其它地址只请求传入的 URL。
+     */
     suspend fun downloadTo(url: String, filePath: String, onProgressCb: ((Int) -> Unit)?) =
         withContext(Dispatchers.IO) {
             log.d("下载文件: $url")
-            val interceptor = Interceptor { chain ->
-                val originalResponse = chain.proceed(chain.request())
-                originalResponse.newBuilder()
-                    .body(DownloadResponseBody(originalResponse, onProgressCb)).build()
-            }
-
-            val client = AppOkHttp.newBuilder().addNetworkInterceptor(interceptor).build()
-            val request = okhttp3.Request.Builder().url(url).build()
-
-            try {
-                with(client.newCall(request).execute()) {
-                    if (!isSuccessful) {
-                        throw Exception("下载失败：HTTP $code")
-                    }
-
-                    val file = File(filePath)
-                    file.parentFile?.mkdirs()
-                    FileOutputStream(file).use { fos -> fos.write(body!!.bytes()) }
+            val urls = GitReleaseDefaultSource.downloadUrlsFor(url)
+            var lastError: Exception? = null
+            for (tryUrl in urls) {
+                try {
+                    downloadSingle(tryUrl, filePath, onProgressCb)
+                    return@withContext
+                } catch (ex: Exception) {
+                    lastError = ex
+                    log.e("下载文件失败: $tryUrl", ex)
+                    File(filePath).takeIf { it.exists() }?.delete()
                 }
-            } catch (ex: Exception) {
-                log.e("下载文件失败", ex)
-                val msg = describeDownloadFailure(ex)
-                throw Exception(msg, ex)
             }
+            val cause = lastError ?: Exception("下载失败")
+            throw Exception(describeDownloadFailure(cause), cause)
         }
+
+    private fun downloadSingle(url: String, filePath: String, onProgressCb: ((Int) -> Unit)?) {
+        log.d("拉取文件: $url")
+        val interceptor = Interceptor { chain ->
+            val originalResponse = chain.proceed(chain.request())
+            originalResponse.newBuilder()
+                .body(DownloadResponseBody(originalResponse, onProgressCb)).build()
+        }
+
+        val client = AppOkHttp.newBuilder().addNetworkInterceptor(interceptor).build()
+        val request = okhttp3.Request.Builder().url(url).build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw Exception("下载失败：HTTP ${response.code}")
+            }
+
+            val file = File(filePath)
+            file.parentFile?.mkdirs()
+            FileOutputStream(file).use { fos -> fos.write(response.body!!.bytes()) }
+        }
+    }
 
     private fun describeDownloadFailure(ex: Throwable): String {
         var t: Throwable? = ex
