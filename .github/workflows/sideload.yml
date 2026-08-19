@@ -5,8 +5,17 @@ name: Sideload debug-signed APK
 on:
   push:
     branches:
-      - cursor/sideload-apk-06ae
+      - cursor/sideload-apk-011-4894
   workflow_dispatch:
+    inputs:
+      version:
+        description: versionName without v prefix
+        required: false
+        default: "0.1.1"
+      version_code:
+        description: Android versionCode (must be greater than previous sideload)
+        required: false
+        default: "1001"
 
 permissions:
   contents: write
@@ -19,12 +28,12 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       GRADLE_OPTS: -Xmx4096m -Dfile.encoding=UTF-8
+      SIDELOAD_VERSION: ${{ github.event.inputs.version || '0.1.1' }}
+      SIDELOAD_VERSION_CODE: ${{ github.event.inputs.version_code || '1001' }}
 
     steps:
-      - name: Checkout main
+      - name: Checkout triggering ref (PR #7 branch code, not main)
         uses: actions/checkout@v5
-        with:
-          ref: main
 
       - name: Setup JDK
         uses: actions/setup-java@v5
@@ -41,7 +50,8 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :app:assembleOriginalArmRelease \
             -PciUseDebugSigning=true \
-            -PreleaseVersion=0.1.0 \
+            -PreleaseVersion="${SIDELOAD_VERSION}" \
+            -PversionCode="${SIDELOAD_VERSION_CODE}" \
             --stacktrace --no-daemon
 
       - name: Package APK
@@ -56,31 +66,38 @@ jobs:
             echo "::error::未找到 originalArmRelease APK"
             exit 1
           fi
-          cp "$apk" artifacts/miaotv-0.1.0-arm-debugsigned.apk
-          ls -lh artifacts/miaotv-0.1.0-arm-debugsigned.apk
-          unzip -l artifacts/miaotv-0.1.0-arm-debugsigned.apk | grep -E "lib/.+\.so$" | head -n 40 || true
+          dest="artifacts/miaotv-${SIDELOAD_VERSION}-arm-debugsigned.apk"
+          cp "$apk" "$dest"
+          ls -lh "$dest"
+          unzip -l "$dest" | grep -E "lib/.+\.so$" | head -n 40 || true
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: miaotv-0.1.0-arm-debugsigned
-          path: artifacts/miaotv-0.1.0-arm-debugsigned.apk
+          name: miaotv-${{ env.SIDELOAD_VERSION }}-arm-debugsigned
+          path: artifacts/miaotv-${{ env.SIDELOAD_VERSION }}-arm-debugsigned.apk
           if-no-files-found: error
 
       - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0
-          target_commitish: main
-          name: miaoTv 0.1.0
+          tag_name: v${{ env.SIDELOAD_VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: miaoTv ${{ env.SIDELOAD_VERSION }}
           prerelease: true
           fail_on_unmatched_files: true
-          files: artifacts/miaotv-0.1.0-arm-debugsigned.apk
+          files: artifacts/miaotv-${{ env.SIDELOAD_VERSION }}-arm-debugsigned.apk
           body: |
-            这是基于当前 `main` 的首个侧载测试包（`originalArmRelease`，包名 `com.feverdestiny.miaotv`）。
+            这是基于 PR #7（`cursor/prerelease-update-cctv-fallback-c73f`）的侧载测试包（`originalArmRelease`，包名 `com.feverdestiny.miaotv`，versionName `0.1.1` / versionCode `1001`）。
 
-            - 默认订阅源：本仓库 [`sources/cn.m3u`](https://github.com/feverdestiny/miaoTv/blob/main/sources/cn.m3u)
+            相对 `v0.1.0` 本包包含：
+
+            - 默认订阅源：jsDelivr → gh-proxy → GitHub raw（[`sources/cn.m3u`](https://github.com/feverdestiny/miaoTv/blob/main/sources/cn.m3u)）
+            - 应用内更新检查：`/releases` 列表 API（可看到 prerelease）+ gh-proxy 回退
+            - `cctv.m3u` 同样的 jsDelivr / gh-proxy / GitHub raw 回退
+
             - **调试签名（debug-signed）**：后续正式签名包无法覆盖安装，请先卸载本测试包再装正式版
             - 安装方式：Android TV / 盒子通过 U 盘或 ADB 侧载
+            - 不覆盖已有的 `v0.1.0` 发布
 
-            构建：`./gradlew :app:assembleOriginalArmRelease -PciUseDebugSigning=true -PreleaseVersion=0.1.0`
+            构建：`./gradlew :app:assembleOriginalArmRelease -PciUseDebugSigning=true -PreleaseVersion=0.1.1 -PversionCode=1001`
