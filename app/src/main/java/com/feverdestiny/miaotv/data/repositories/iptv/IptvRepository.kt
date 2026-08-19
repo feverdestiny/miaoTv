@@ -27,7 +27,8 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
 
     /**
      * 获取远程直播源数据。
-     * 默认订阅按 jsDelivr → gh-proxy → GitHub raw 回退；自定义地址只请求用户填写的 URL。
+     * 内置 cn / cctv 订阅按各自的 jsDelivr → gh-proxy → GitHub raw 回退；
+     * 自定义地址只请求用户填写的 URL。
      */
     private suspend fun fetchSource(sourceUrl: String, requestHeadersText: String) =
         withContext(Dispatchers.IO) {

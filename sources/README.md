@@ -6,14 +6,16 @@
 
 ## 合并到 `main` 后的地址
 
-应用**首次安装的默认订阅**是中国频道聚合列表（`cn.m3u`）。国内网络优先走 jsDelivr，失败时自动回退 gh-proxy，再回退 GitHub raw（在获取层完成，**不会**把失效的首个 host 写成唯一订阅）。**jsDelivr 可能缓存数小时**。仅看央视可在 **设置 → 直播源** 改为 `cctv.m3u`：
+应用**首次安装的默认订阅**是中国频道聚合列表（`cn.m3u`）。国内网络优先走 jsDelivr，失败时自动回退 gh-proxy，再回退 GitHub raw（在获取层完成，**不会**把失效的首个 host 写成唯一订阅）。**jsDelivr 可能缓存数小时**。仅看央视可在 **设置 → 直播源** 改为 `cctv.m3u`（同样三条镜像，**不与 `cn.m3u` 混用**）：
 
 - 中国频道（合并去重，**应用默认，首选**）：https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cn.m3u
 - 中国频道（gh-proxy 回退）：https://gh-proxy.com/https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u
 - 中国频道（GitHub raw 回退）：https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cn.m3u
-- 仅 CCTV / 央视：https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u
+- 仅 CCTV / 央视（首选）：https://cdn.jsdelivr.net/gh/feverdestiny/miaoTv@main/sources/cctv.m3u
+- 仅 CCTV / 央视（gh-proxy 回退）：https://gh-proxy.com/https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u
+- 仅 CCTV / 央视（GitHub raw 回退）：https://raw.githubusercontent.com/feverdestiny/miaoTv/main/sources/cctv.m3u
 
-在应用中打开 **设置 → 直播源**，粘贴上述 URL 保存。也可通过设备上的网页配置页（`http://<设备IP>:1616`）填写同一地址。用户自定义订阅不会使用这组回退。
+在应用中打开 **设置 → 直播源**，粘贴上述 URL 保存。粘贴某条链中任一地址时，获取层会走该列表的完整回退（cn 与 cctv 分列）。也可通过设备上的网页配置页（`http://<设备IP>:1616`）填写同一地址。用户自定义订阅不会使用这组回退。
 
 ## 免责声明
 

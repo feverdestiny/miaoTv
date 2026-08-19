@@ -12,7 +12,7 @@ import com.feverdestiny.miaotv.utils.Loggable
 class GitRepository : Loggable() {
 
     /**
-     * 拉取最新发行版。内置 GitHub Latest API 按 gh-proxy → 官方 API 回退；
+     * 拉取最新发行版。内置 GitHub 列表 / 旧 Latest API 按 gh-proxy → 官方列表 API 回退；
      * 自定义地址只请求传入的 URL。
      */
     suspend fun latestRelease(url: String) = withContext(Dispatchers.IO) {
