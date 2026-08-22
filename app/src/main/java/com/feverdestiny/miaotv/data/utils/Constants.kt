@@ -83,6 +83,26 @@ object Constants {
     const val HTTP_RETRY_INTERVAL = 3000L
 
     /**
+     * 直播源 / 元数据拉取：单 URL 连接超时（秒）。
+     * 不改 [com.feverdestiny.miaotv.utils.AppOkHttp] 默认 180s 媒体超时。
+     */
+    const val IPTV_FETCH_CONNECT_TIMEOUT_SECONDS = 8L
+
+    /** 直播源 / 元数据拉取：单 URL 读超时（秒） */
+    const val IPTV_FETCH_READ_TIMEOUT_SECONDS = 10L
+
+    /** 直播源 / 元数据拉取：单 URL 整次调用超时（秒），须落在 8–12 */
+    const val IPTV_FETCH_CALL_TIMEOUT_SECONDS = 10L
+
+    /**
+     * 直播源整链额外重试次数。内置源已按 3 个 host 回退，此处最多再走 1 遍整链。
+     */
+    const val IPTV_FETCH_RETRY_COUNT = 1L
+
+    /** 直播源整链重试间隔（毫秒） */
+    const val IPTV_FETCH_RETRY_INTERVAL = 1000L
+
+    /**
      * 播放器 userAgent
      */
     const val VIDEO_PLAYER_USER_AGENT = "ExoPlayer"
