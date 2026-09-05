@@ -30,8 +30,11 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
      * 内置 cn / cctv 订阅按各自的 jsDelivr → gh-proxy → GitHub raw 回退；
      * 自定义地址只请求用户填写的 URL。
      */
-    private suspend fun fetchSource(sourceUrl: String, requestHeadersText: String) =
-        withContext(Dispatchers.IO) {
+    private suspend fun fetchSource(
+        sourceUrl: String,
+        requestHeadersText: String,
+        onFetchProgress: (String) -> Unit,
+    ) = withContext(Dispatchers.IO) {
         log.d("获取远程直播源: $sourceUrl")
 
         if (sourceUrl.trim().startsWith(SP.IPTV_LOCAL_SOURCE_URL)) {
@@ -45,7 +48,8 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
         val urls = IptvDefaultSubscription.fetchUrlsFor(sourceUrl)
         val requireM3u = IptvDefaultSubscription.isBuiltin(sourceUrl)
         var lastError: Exception? = null
-        for (url in urls) {
+        for ((index, url) in urls.withIndex()) {
+            onFetchProgress(IptvDefaultSubscription.fetchProgressMessage(url, index, urls.size))
             try {
                 return@withContext fetchRemotePlaylist(url, requestHeadersText, requireM3u)
             } catch (ex: Exception) {
@@ -53,7 +57,7 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
                 log.e("获取远程直播源失败: $url", ex)
             }
         }
-        throw Exception("获取远程直播源失败，请检查网络连接", lastError)
+        throw Exception(IptvDefaultSubscription.FETCH_FAILURE_MESSAGE, lastError)
     }
 
     private fun fetchRemotePlaylist(
@@ -62,7 +66,7 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
         requireM3u: Boolean,
     ): String {
         log.d("拉取直播源: $url")
-        val client = AppOkHttp.client()
+        val client = AppOkHttp.metadataClient()
         val norm = normalizeIptvRequestHeadersInput(requestHeadersText)
         val blended =
             IptvOutboundHeaderPolicy.applyToNormalizedHeadersText(norm, url)
@@ -95,13 +99,14 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
         sourceUrl: String,
         cacheTime: Long,
         requestHeadersText: String = "",
+        onFetchProgress: (String) -> Unit = {},
     ): IptvGroupList {
         if (sourceUrl.isBlank()) {
             return IptvGroupList()
         }
         try {
             val sourceData = getOrRefresh(cacheTime) {
-                fetchSource(sourceUrl, requestHeadersText)
+                fetchSource(sourceUrl, requestHeadersText, onFetchProgress)
             }
             SP.iptvSourceEmbeddedEpgUrl = extractEmbeddedEpgUrlFromM3u(sourceData)
 
@@ -116,7 +121,7 @@ class IptvRepository : FileCacheRepository("iptv.txt") {
             }
         } catch (ex: Exception) {
             log.e("获取直播源失败", ex)
-            throw Exception(ex)
+            throw ex
         }
     }
 

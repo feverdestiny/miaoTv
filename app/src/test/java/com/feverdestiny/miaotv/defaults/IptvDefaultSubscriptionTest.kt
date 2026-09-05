@@ -103,4 +103,61 @@ class IptvDefaultSubscriptionTest {
         assertTrue(IptvDefaultSubscription.isValidDefaultPlaylist("#EXTM3U\n#EXTINF:-1,CCTV1\nhttp://a"))
         assertTrue(IptvDefaultSubscription.isValidDefaultPlaylist("\uFEFF#EXTINF:-1,CCTV1\nhttp://a"))
     }
+
+    @Test
+    fun hostLabelNamesBuiltinMirrors() {
+        assertEquals(
+            "jsDelivr",
+            IptvDefaultSubscription.hostLabel(AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_URL),
+        )
+        assertEquals(
+            "gh-proxy",
+            IptvDefaultSubscription.hostLabel(
+                AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_URL_GH_PROXY,
+            ),
+        )
+        assertEquals(
+            "GitHub",
+            IptvDefaultSubscription.hostLabel(
+                AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_URL_GITHUB_RAW,
+            ),
+        )
+        assertEquals(
+            "jsDelivr",
+            IptvDefaultSubscription.hostLabel(AppBuiltinEndpoints.IPTV_CCTV_SUBSCRIPTION_URL),
+        )
+        assertEquals("example.com", IptvDefaultSubscription.hostLabel("https://example.com/my.m3u"))
+        assertEquals("远程源", IptvDefaultSubscription.hostLabel("not a url"))
+    }
+
+    @Test
+    fun fetchProgressMessageNamesHostImmediately() {
+        val urls = IptvDefaultSubscription.fetchUrlsFor(
+            AppBuiltinEndpoints.IPTV_DEFAULT_SUBSCRIPTION_URL,
+        )
+        assertEquals(
+            "正在从 jsDelivr 拉取直播源（1/3）…",
+            IptvDefaultSubscription.fetchProgressMessage(urls[0], 0, urls.size),
+        )
+        assertEquals(
+            "正在从 gh-proxy 拉取直播源（2/3）…",
+            IptvDefaultSubscription.fetchProgressMessage(urls[1], 1, urls.size),
+        )
+        assertEquals(
+            "正在从 GitHub 拉取直播源（3/3）…",
+            IptvDefaultSubscription.fetchProgressMessage(urls[2], 2, urls.size),
+        )
+        assertEquals(
+            "正在从 example.com 拉取直播源…",
+            IptvDefaultSubscription.fetchProgressMessage("https://example.com/my.m3u", 0, 1),
+        )
+    }
+
+    @Test
+    fun fetchFailureMessagePointsToSettingsAndJsDelivr() {
+        val msg = IptvDefaultSubscription.FETCH_FAILURE_MESSAGE
+        assertTrue(msg.contains("拉源失败"))
+        assertTrue(msg.contains("jsDelivr"))
+        assertTrue(msg.contains("设置") || msg.contains("扫码"))
+    }
 }
