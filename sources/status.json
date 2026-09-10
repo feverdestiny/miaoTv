@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-09-09T22:19:19Z",
+  "fetched_at": "2026-09-10T22:18:43Z",
   "generator": "miaoTv/scripts/aggregate_sources.py",
   "upstreams": [
     {
@@ -19,8 +19,8 @@
       "http_status": 200,
       "ok": true,
       "error": null,
-      "channels_parsed": 58,
-      "channels_kept": 58
+      "channels_parsed": 74,
+      "channels_kept": 74
     },
     {
       "id": "best-fan-cn-all",
@@ -29,8 +29,8 @@
       "http_status": 200,
       "ok": true,
       "error": null,
-      "channels_parsed": 132,
-      "channels_kept": 132
+      "channels_parsed": 170,
+      "channels_kept": 170
     },
     {
       "id": "ccsh-live-lite",
@@ -39,20 +39,20 @@
       "http_status": 200,
       "ok": true,
       "error": null,
-      "channels_parsed": 2013,
-      "channels_kept": 2012
+      "channels_parsed": 1552,
+      "channels_kept": 1551
     }
   ],
   "outputs": {
     "cn.m3u": {
-      "channels": 2210
+      "channels": 1798
     },
     "cctv.m3u": {
-      "channels": 585
+      "channels": 583
     }
   },
   "dropped": {
-    "duplicates": 136,
+    "duplicates": 141,
     "nsfw_or_meta": 1
   }
 }
