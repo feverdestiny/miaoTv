@@ -33,6 +33,7 @@ import io.github.alexzhirkevich.qrose.options.QrShapes
 import io.github.alexzhirkevich.qrose.options.circle
 import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import com.feverdestiny.miaotv.defaults.IptvDefaultSubscription
 import com.feverdestiny.miaotv.ui.rememberLeanbackChildPadding
 import com.feverdestiny.miaotv.ui.screens.leanback.components.LeanbackVisible
 import com.feverdestiny.miaotv.ui.screens.leanback.main.components.LeanbackBackPressHandledArea
@@ -112,7 +113,7 @@ private fun LeanbackMainScreenLoading(messageProvider: () -> String?) {
 @Composable
 private fun LeanbackMainScreenLoadingPreview() {
     LeanbackTheme {
-        LeanbackMainScreenLoading { "获取远程直播源(2/10)..." }
+        LeanbackMainScreenLoading { "正在从 jsDelivr 拉取直播源（1/3）…" }
     }
 }
 
@@ -189,7 +190,7 @@ private fun LeanbackMainScreenError(
 private fun LeanbackMainScreenErrorPreview() {
     LeanbackTheme {
         LeanbackMainScreenError(
-            { "获取远程直播源失败，请检查网络连接" },
+            { IptvDefaultSubscription.FETCH_FAILURE_MESSAGE },
             "http://244.178.44.111:8080",
         )
     }
