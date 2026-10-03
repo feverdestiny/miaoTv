@@ -20,6 +20,7 @@ import com.feverdestiny.miaotv.data.entities.IptvGroupList.Companion.iptvList
 import com.feverdestiny.miaotv.data.repositories.epg.EpgRepository
 import com.feverdestiny.miaotv.data.repositories.iptv.IptvRepository
 import com.feverdestiny.miaotv.data.utils.Constants
+import com.feverdestiny.miaotv.defaults.IptvDefaultSubscription
 import com.feverdestiny.miaotv.ui.utils.SP
 import com.feverdestiny.miaotv.ui.utils.WebPushConfigNotifier
 import com.feverdestiny.miaotv.utils.defaultEpgRequestHeadersAfterUserEmpty
@@ -82,21 +83,27 @@ class LeanbackMainViewModel : ViewModel() {
         }
 
         val headersForFetch = iptvRequestHeadersForFetch()
+        _uiState.value = LeanbackMainUiState.Loading("正在拉取直播源…")
         flow {
             emit(
                 iptvRepository.getIptvGroupList(
                     sourceUrl = SP.iptvSourceUrl,
                     cacheTime = SP.iptvSourceCacheTime,
                     requestHeadersText = headersForFetch,
+                    onFetchProgress = { msg ->
+                        _uiState.value = LeanbackMainUiState.Loading(msg)
+                    },
                 )
             )
         }
             .retryWhen { _, attempt ->
-                if (attempt >= Constants.HTTP_RETRY_COUNT) return@retryWhen false
+                if (attempt >= Constants.IPTV_FETCH_RETRY_COUNT) return@retryWhen false
 
                 _uiState.value =
-                    LeanbackMainUiState.Loading("获取远程直播源(${attempt + 1}/${Constants.HTTP_RETRY_COUNT})...")
-                delay(Constants.HTTP_RETRY_INTERVAL)
+                    LeanbackMainUiState.Loading(
+                        "拉源失败，正在重试（${attempt + 1}/${Constants.IPTV_FETCH_RETRY_COUNT}）…",
+                    )
+                delay(Constants.IPTV_FETCH_RETRY_INTERVAL)
                 true
             }
             .catch {
@@ -110,7 +117,10 @@ class LeanbackMainViewModel : ViewModel() {
                     _uiState.value = LeanbackMainUiState.Ready(iptvGroupList = IptvGroupList())
                     return@catch
                 }
-                _uiState.value = LeanbackMainUiState.Error(it.message)
+                _uiState.value = LeanbackMainUiState.Error(
+                    if (msg.contains("本地订阅")) msg
+                    else IptvDefaultSubscription.FETCH_FAILURE_MESSAGE,
+                )
                 if (SP.iptvSourceUrl.isNotBlank() &&
                     !SP.iptvSourceUrl.trim().startsWith(SP.IPTV_LOCAL_SOURCE_URL)
                 ) {
