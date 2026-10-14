@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-10-13T23:37:50Z",
+  "fetched_at": "2026-10-14T23:00:45Z",
   "generator": "miaoTv/scripts/aggregate_sources.py",
   "upstreams": [
     {
@@ -29,8 +29,8 @@
       "http_status": 200,
       "ok": true,
       "error": null,
-      "channels_parsed": 212,
-      "channels_kept": 212
+      "channels_parsed": 186,
+      "channels_kept": 186
     },
     {
       "id": "ccsh-live-lite",
@@ -39,20 +39,20 @@
       "http_status": 200,
       "ok": true,
       "error": null,
-      "channels_parsed": 1626,
-      "channels_kept": 1625
+      "channels_parsed": 1629,
+      "channels_kept": 1628
     }
   ],
   "outputs": {
     "cn.m3u": {
-      "channels": 1913
+      "channels": 1891
     },
     "cctv.m3u": {
-      "channels": 556
+      "channels": 568
     }
   },
   "dropped": {
-    "duplicates": 144,
+    "duplicates": 143,
     "nsfw_or_meta": 1
   }
 }
