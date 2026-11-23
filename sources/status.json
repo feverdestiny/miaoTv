@@ -1,5 +1,5 @@
 {
-  "fetched_at": "2026-11-22T00:07:55Z",
+  "fetched_at": "2026-11-23T00:36:58Z",
   "generator": "miaoTv/scripts/aggregate_sources.py",
   "upstreams": [
     {
@@ -39,13 +39,13 @@
       "http_status": 200,
       "ok": true,
       "error": null,
-      "channels_parsed": 2429,
-      "channels_kept": 2428
+      "channels_parsed": 2411,
+      "channels_kept": 2410
     }
   ],
   "outputs": {
     "cn.m3u": {
-      "channels": 2719
+      "channels": 2701
     },
     "cctv.m3u": {
       "channels": 764
